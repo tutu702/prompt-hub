@@ -1,0 +1,8 @@
+/**
+ * API 模块统一导出
+ * 各业务模块的接口放在 ./modules/ 下，本文件仅做聚合导出。
+ */
+export { default as http, type ApiResponse, type PageRequest, type PageResult } from './http'
+
+// 业务接口示例（占位）：
+// export * as promptApi from './modules/prompt'

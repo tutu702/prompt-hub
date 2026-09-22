@@ -1,0 +1,38 @@
+/**
+ * 全局样式入口
+ *
+ * 推荐结构：
+ * - reset.scss      浏览器重置
+ * - variables.scss  自定义 CSS 变量（设计 token）
+ * - element.scss    Element Plus 全局覆盖
+ * - utilities.scss  工具类
+ * - index.scss      汇总（本文件）
+ */
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: #1f2937;
+  background-color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

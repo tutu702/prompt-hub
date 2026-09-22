@@ -1,0 +1,90 @@
+version: "3.9"
+
+# PromptHub 全栈本地一键编排
+# 包含：
+#   - postgres  数据库（默认启用；可将 driver 切换为 mysql，注释掉本 service 并启用 mysql）
+#   - backend   Go 后端服务
+#   - frontend  前端静态服务（生产构建产物，由 Nginx 提供）
+#
+# 启动：
+#   docker compose up -d
+# 停止：
+#   docker compose down
+# 重置（含数据）：
+#   docker compose down -v
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: prompthub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-prompthub}
+      TZ: Asia/Shanghai
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 可选：MySQL（默认未启用，取消注释并把 db.driver 改为 mysql）
+  # mysql:
+  #   image: mysql:8.4
+  #   container_name: prompthub-mysql
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root
+  #     MYSQL_DATABASE: prompthub
+  #     TZ: Asia/Shanghai
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: prompthub-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PROMPTHUB_APP_ENV: development
+      PROMPTHUB_SERVER_HOST: 0.0.0.0
+      PROMPTHUB_SERVER_PORT: "8080"
+      PROMPTHUB_SERVER_MODE: release
+      PROMPTHUB_LOG_LEVEL: info
+      PROMPTHUB_LOG_FORMAT: json
+      PROMPTHUB_DB_DRIVER: postgres
+      PROMPTHUB_DB_HOST: postgres
+      PROMPTHUB_DB_PORT: "5432"
+      PROMPTHUB_DB_USER: ${POSTGRES_USER:-postgres}
+      PROMPTHUB_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PROMPTHUB_DB_DBNAME: ${POSTGRES_DB:-prompthub}
+      PROMPTHUB_DB_SSLMODE: disable
+      PROMPTHUB_JWT_SECRET: change-me-in-production
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: prompthub-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
+  # mysql_data:

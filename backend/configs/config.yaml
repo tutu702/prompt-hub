@@ -1,0 +1,41 @@
+# PromptHub 后端默认配置
+# 优先级：环境变量 (PROMPTHUB_*) > .env > 此文件 > 代码中的默认值
+
+app:
+  name: "PromptHub"
+  env: "development"
+  version: "0.1.0"
+  description: "AI 提示词资产管理工具后端"
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mode: "debug"               # debug / release / test
+  read_timeout: "15s"
+  write_timeout: "15s"
+  shutdown_timeout: "10s"
+
+log:
+  level: "info"               # debug / info / warn / error
+  format: "console"           # console / json
+  output_path: "stdout"       # stdout 或文件路径
+
+db:
+  driver: "postgres"          # postgres / mysql
+  host: "127.0.0.1"
+  port: 5432
+  user: "postgres"
+  password: "postgres"
+  dbname: "prompthub"
+  sslmode: "disable"
+  charset: "utf8mb4"
+  max_open_conns: 50
+  max_idle_conns: 10
+  conn_max_lifetime: "1h"
+  log_level: "warn"
+
+jwt:
+  secret: "change-me-in-production"
+  access_expire: "2h"
+  refresh_expire: "168h"
+  issuer: "prompthub"
