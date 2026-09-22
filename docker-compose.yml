@@ -16,11 +16,11 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: prompthub-postgres
+    container_name: pgdev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-node@pg2026}
       POSTGRES_DB: ${POSTGRES_DB:-prompthub}
       TZ: Asia/Shanghai
     ports:
@@ -67,7 +67,7 @@ services:
       PROMPTHUB_DB_HOST: postgres
       PROMPTHUB_DB_PORT: "5432"
       PROMPTHUB_DB_USER: ${POSTGRES_USER:-postgres}
-      PROMPTHUB_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PROMPTHUB_DB_PASSWORD: ${POSTGRES_PASSWORD:-node@pg2026}
       PROMPTHUB_DB_DBNAME: ${POSTGRES_DB:-prompthub}
       PROMPTHUB_DB_SSLMODE: disable
       PROMPTHUB_JWT_SECRET: change-me-in-production

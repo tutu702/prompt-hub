@@ -1,13 +1,26 @@
 <script setup lang="ts">
 /**
  * 应用根组件
- * 通过 Vue Router 渲染当前路由对应的视图。
+ * 根据 route.meta.layout 动态选择 BlankLayout 或 DefaultLayout 包裹 <router-view />。
  */
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import BlankLayout from '@/layouts/BlankLayout.vue'
+
+const route = useRoute()
+
+const layoutComponent = computed(() => {
+  const layout = (route.meta?.layout as string | undefined) || 'default'
+  return layout === 'blank' ? BlankLayout : DefaultLayout
+})
 </script>
 
 <template>
   <el-config-provider>
-    <router-view />
+    <component :is="layoutComponent">
+      <router-view />
+    </component>
   </el-config-provider>
 </template>
 

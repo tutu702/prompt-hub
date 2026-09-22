@@ -12,8 +12,14 @@ import (
 
 	"github.com/prompthub/prompthub/internal/config"
 	"github.com/prompthub/prompthub/internal/handler"
+	jwtpkg "github.com/prompthub/prompthub/internal/pkg/jwt"
+	"github.com/prompthub/prompthub/internal/model"
 	"github.com/prompthub/prompthub/internal/pkg/database"
+	"github.com/prompthub/prompthub/internal/pkg/response"
+	"github.com/prompthub/prompthub/internal/repository"
+	gormrepo "github.com/prompthub/prompthub/internal/repository/gorm"
 	"github.com/prompthub/prompthub/internal/router"
+	"github.com/prompthub/prompthub/internal/service"
 )
 
 // HTTPServer 是后端 HTTP 服务器。
@@ -40,11 +46,35 @@ func New(cfg *config.Config, log *zap.Logger) *HTTPServer {
 		)
 	}
 
+	// AutoMigrate 业务表（骨架阶段：失败仅 warn；生产请替换为独立 migration 工具）
+	if db != nil {
+		if err := db.AutoMigrate(&model.User{}); err != nil {
+			log.Warn("AutoMigrate 失败，登录注册相关接口将无法使用", zap.Error(err))
+		} else {
+			log.Info("AutoMigrate 完成：ph_users")
+		}
+	}
+
+	// 构造 JWT 管理器
+	jwtMgr := jwtpkg.NewManager(cfg.JWT.Secret, cfg.JWT.Issuer, cfg.JWT.AccessExpire, cfg.JWT.RefreshExpire)
+
+	// 构造鉴权服务（依赖 db；db 为 nil 时 login/register 将返回 500）
+	var userRepo repository.UserRepo
+	if db != nil {
+		userRepo = gormrepo.NewUserRepo(db)
+	}
+	authSvc := service.NewAuthService(userRepo, jwtMgr, log)
+
+	// 装配 handler
 	healthH := handler.NewHealthHandler(cfg, db)
+	authH := handler.NewAuthHandler(authSvc, log)
+
 	engine := router.New(router.Options{
-		Cfg:    cfg,
-		Logger: log,
-		Health: healthH,
+		Cfg:        cfg,
+		Logger:     log,
+		Health:     healthH,
+		Auth:       authH,
+		JWTManager: jwtMgr,
 	})
 
 	srv := &http.Server{
@@ -122,3 +152,6 @@ func itoa(n int) string {
 
 // 保留 time import 已被使用避免未使用告警被某些 linter 误判。
 var _ = time.Second
+
+// 避免 response 包被未使用告警误判（部分 CI 会做全量引用检查）。
+var _ = response.OK

@@ -1,14 +1,19 @@
 // Package router 负责注册所有路由。
 //
-// 现阶段仅注册：
+// 当前已注册：
 //   - GET /healthz
-//   - GET /version
-//   - 业务接口在后续迭代中按 PRD 顺序加入
+//   - GET /api/v1/version
+//   - /api/v1/auth/{register,login,refresh}（公开）
+//   - /api/v1/auth/logout, /api/v1/prompts（受 JWT 中间件保护）
+//
+// 其它业务接口按 PRD 章节 8 在后续迭代加入。
 package router
 
 import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	jwtpkg "github.com/prompthub/prompthub/internal/pkg/jwt"
 
 	"github.com/prompthub/prompthub/internal/config"
 	"github.com/prompthub/prompthub/internal/handler"
@@ -17,12 +22,11 @@ import (
 
 // Options 路由注册需要的依赖。
 type Options struct {
-	Cfg      *config.Config
-	Logger   *zap.Logger
-	Health   *handler.HealthHandler
-	// 后续业务控制器通过 Options 注入
-	// UserHandler    *handler.UserHandler
-	// PromptHandler  *handler.PromptHandler
+	Cfg        *config.Config
+	Logger     *zap.Logger
+	Health     *handler.HealthHandler
+	Auth       *handler.AuthHandler
+	JWTManager *jwtpkg.Manager
 }
 
 // New 构建 *gin.Engine。
@@ -42,6 +46,7 @@ func New(opt Options) *gin.Engine {
 	// API 路由组
 	api := r.Group("/api/v1")
 	{
+		// 版本信息
 		api.GET("/version", func(c *gin.Context) {
 			c.JSON(200, gin.H{
 				"app":     opt.Cfg.App.Name,
@@ -50,11 +55,21 @@ func New(opt Options) *gin.Engine {
 			})
 		})
 
-		// TODO: 业务路由按 PRD 章节 8 添加
-		// auth := api.Group("/auth")
-		// prompts := api.Group("/prompts")
-		// categories := api.Group("/categories")
-		// llm := api.Group("/llm")
+		// ---- 鉴权：公开 ----
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", opt.Auth.Register)
+			auth.POST("/login", opt.Auth.Login)
+			auth.POST("/refresh", opt.Auth.Refresh)
+		}
+
+		// ---- 鉴权：受保护 ----
+		protected := api.Group("")
+		protected.Use(middleware.JWT(opt.JWTManager, opt.Logger))
+		{
+			protected.POST("/auth/logout", opt.Auth.Logout)
+			protected.GET("/prompts", handler.PromptsPlaceholder)
+		}
 	}
 
 	// 兜底 404

@@ -58,6 +58,9 @@
 
 ### 6.1 `ph_users` 用户表
 
+> 已创建：见 `backend/internal/model/user.go`；启动时由 server 自动调用 `AutoMigrate` 建表。
+> 字段定义如下：
+
 | 字段 | 类型 | 约束 |
 | --- | --- | --- |
 | id | BIGINT | PK |

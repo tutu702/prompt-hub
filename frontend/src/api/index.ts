@@ -4,5 +4,5 @@
  */
 export { default as http, type ApiResponse, type PageRequest, type PageResult } from './http'
 
-// 业务接口示例（占位）：
-// export * as promptApi from './modules/prompt'
+// 业务接口
+export * as authApi from './modules/auth'

@@ -76,6 +76,11 @@
 | --- | --- | --- | --- |
 | GET | `/healthz` | 健康检查（含 DB 连通性） | 否 |
 | GET | `/api/v1/version` | 应用版本信息 | 否 |
+| POST | `/api/v1/auth/register` | 用户注册，成功后自动签发双 token | 否 |
+| POST | `/api/v1/auth/login` | 邮箱+密码登录；统一提示"邮箱或密码错误"（防枚举） | 否 |
+| POST | `/api/v1/auth/refresh` | 用 refresh_token 换取新 access_token | 否 |
+| POST | `/api/v1/auth/logout` | 登出（本期服务端无副作用，前端清 token） | 是 |
+| GET | `/api/v1/prompts` | 提示词占位接口（仅验证鉴权流程） | 是 |
 
 ## 5. 后续按 PRD 实现的接口（待办）
 
