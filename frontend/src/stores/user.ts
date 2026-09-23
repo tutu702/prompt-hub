@@ -51,12 +51,6 @@ export const useUserStore = defineStore('user', () => {
    * 安全缓冲：提前 60 秒认为过期，避免边界时间点后端已 401 但前端仍以为登录。
    */
   function isLoggedIn(): boolean {
-    console.log('[userStore] isLoggedIn', {
-      hasAccess: !!accessToken.value,
-      expiresAt: expiresAt.value,
-      now: Date.now(),
-      diff: expiresAt.value - Date.now(),
-    })
     return !!accessToken.value && expiresAt.value > Date.now() + 60_000
   }
 

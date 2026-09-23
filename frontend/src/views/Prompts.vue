@@ -2,14 +2,20 @@
 /**
  * 提示词库 P03（PRD §三 P03）。
  *
- * 顶部工具栏 + 卡片网格 + 分页 + 空态。
+ * 顶部问候 + 统计卡 + 工具栏 + 卡片网格 + 分页 + 空态。
  * 支持：搜索（防抖 300ms）/ 筛选 / 排序 / 收藏切换 / 复制 / 删除 / 批量删除。
- * 不支持（占位 toast）：新建 / AI 生成 / 详情 / 编辑 / AI 调优 / 批量导出。
+ * 不支持（占位 toast）：编辑 / AI 调优 / 详情 / 批量导出。
  */
 import { computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus as PlusIcon, MagicStick as MagicIcon } from '@element-plus/icons-vue'
+import {
+  Plus as PlusIcon,
+  MagicStick as MagicIcon,
+  TrendCharts as UsageIcon,
+  Collection as CollectionIcon,
+} from '@element-plus/icons-vue'
 
 import PromptList from '@/components/prompts/PromptList.vue'
 import Toolbar from '@/components/prompts/Toolbar.vue'
@@ -23,6 +29,8 @@ import { copyToClipboard } from '@/utils'
 const promptStore = usePromptStore()
 const categoryStore = useCategoryStore()
 const userStore = useUserStore()
+const router = useRouter()
+const route = useRoute()
 
 const {
   list,
@@ -32,17 +40,52 @@ const {
   loading,
   batchMode,
   selectedIds,
+  viewMode,
 } = storeToRefs(promptStore)
 
+/** 问候语（按本地小时数简单切换） */
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  if (h < 6) return '夜深了'
+  if (h < 12) return '早上好'
+  if (h < 14) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})
+
+/** 显示用用户名（昵称 > 邮箱 > "用户"） */
+const displayName = computed(
+  () =>
+    userStore.userInfo?.nickname?.trim() ||
+    (userStore.userInfo?.email ? userStore.userInfo.email.split('@')[0] : '') ||
+    '用户',
+)
+
+/** 今日新增条数（基于当前列表 created_at 计算，仅为占位展示） */
+const todayNewCount = computed(() => {
+  const today = new Date().toDateString()
+  return list.value.filter(
+    (p) => new Date(p.created_at).toDateString() === today,
+  ).length
+})
+
+/* --------------------------------------------------------------
+ * 数据拉取与登录态联动
+ * ------------------------------------------------------------*/
+
 onMounted(async () => {
-  // 拉取分类 + 拉取列表（并行）
+  // 若 URL 带 q=xxx（从顶部全局搜索跳转过来），先填到 store
+  const incoming = route.query.q
+  if (typeof incoming === 'string' && incoming) {
+    promptStore.setKeyword(incoming)
+  }
+
   await Promise.all([
     categoryStore.loadIfNeed(),
     promptStore.fetchList(),
   ])
 })
 
-// 登录态变化时重置 store 并重新拉取
 watch(
   () => userStore.isLoggedIn(),
   (logged) => {
@@ -54,6 +97,10 @@ watch(
 )
 
 const showEmpty = computed(() => !loading.value && list.value.length === 0)
+
+/* --------------------------------------------------------------
+ * 卡片交互
+ * ------------------------------------------------------------*/
 
 async function handleCopy(p: PromptT) {
   const ok = await copyToClipboard(p.content)
@@ -75,7 +122,6 @@ async function handleFavorite(p: PromptT) {
   try {
     await promptApi.toggleFavorite(p.id, { is_favorite: target })
   } catch {
-    // 回滚
     if (original && idx >= 0) {
       promptStore.list.splice(idx, 1, original)
     }
@@ -135,11 +181,11 @@ function handleBatchExport() {
 }
 
 function handleCreate() {
-  ElMessage.info('提示词创建页即将开放')
+  router.push('/prompts/new')
 }
 
 function handleAiCreate() {
-  ElMessage.info('AI 生成提示词即将开放')
+  router.push({ name: 'PromptCreate', query: { tab: 'ai' } })
 }
 
 function handleEdit(_p: PromptT) {
@@ -158,34 +204,47 @@ function onPageChange(p: number) {
   promptStore.goPage(p)
   promptStore.fetchList()
 }
-
-function handleLogout() {
-  ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-    type: 'warning',
-    confirmButtonText: '退出',
-    cancelButtonText: '取消',
-  })
-    .then(async () => {
-      await userStore.logout()
-      ElMessage.success('已退出登录')
-    })
-    .catch(() => {})
-}
 </script>
 
 <template>
   <div class="prompts">
-    <header class="prompts__header">
-      <div>
-        <h2 class="prompts__title">提示词库</h2>
-        <p class="prompts__sub">
-          欢迎回来，
-          <strong>{{ userStore.userInfo?.nickname || userStore.userInfo?.email || '用户' }}</strong>
+    <!-- 问候 + 统计 -->
+    <section class="prompts__hello">
+      <div class="prompts__hello-text">
+        <h1 class="prompts__hello-title">
+          {{ greeting }}，{{ displayName }} <span class="prompts__hello-emoji">👋</span>
+        </h1>
+        <p class="prompts__hello-sub">
+          今日新增
+          <strong>{{ todayNewCount }}</strong>
+          条提示词 ·
+          共 <strong>{{ total }}</strong> 条资产
         </p>
       </div>
-      <el-button @click="handleLogout">退出登录</el-button>
-    </header>
 
+      <div class="prompts__hello-stats">
+        <div class="prompts__stat">
+          <span class="prompts__stat-icon prompts__stat-icon--fire">
+            <el-icon><UsageIcon /></el-icon>
+          </span>
+          <span class="prompts__stat-content">
+            <span class="prompts__stat-label">本周使用</span>
+            <span class="prompts__stat-value">42 <em>次</em></span>
+          </span>
+        </div>
+        <div class="prompts__stat">
+          <span class="prompts__stat-icon prompts__stat-icon--blue">
+            <el-icon><MagicIcon /></el-icon>
+          </span>
+          <span class="prompts__stat-content">
+            <span class="prompts__stat-label">调优版本</span>
+            <span class="prompts__stat-value">16 <em>个</em></span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 工具栏 -->
     <Toolbar
       class="prompts__toolbar"
       @create="handleCreate"
@@ -194,11 +253,13 @@ function handleLogout() {
       @batch-export="handleBatchExport"
     />
 
+    <!-- 列表 -->
     <main class="prompts__main">
       <PromptList
         :list="list"
         :loading="loading"
         :batch-mode="batchMode"
+        :view-mode="viewMode"
         :selected-ids="selectedIds"
         @copy="handleCopy"
         @edit="handleEdit"
@@ -217,7 +278,7 @@ function handleLogout() {
               <el-button type="primary" :icon="PlusIcon" @click="handleCreate">
                 新建提示词
               </el-button>
-              <el-button type="success" plain :icon="MagicIcon" @click="handleAiCreate">
+              <el-button type="success" plain :icon="CollectionIcon" @click="handleAiCreate">
                 AI 生成提示词
               </el-button>
             </div>
@@ -226,10 +287,11 @@ function handleLogout() {
       </PromptList>
     </main>
 
+    <!-- 分页 -->
     <footer v-if="!showEmpty" class="prompts__pagination">
       <el-pagination
         background
-        layout="prev, pager, next, jumper, total"
+        layout="prev, pager, next"
         :current-page="page"
         :page-size="pageSize"
         :total="total"
@@ -241,45 +303,138 @@ function handleLogout() {
 
 <style scoped>
 .prompts {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 16px 24px 32px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-.prompts__header {
+/* ---------- 问候区 ---------- */
+.prompts__hello {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.prompts__hello-text { min-width: 0; }
+
+.prompts__hello-title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.2px;
+}
+
+.prompts__hello-emoji {
+  display: inline-block;
+  margin-left: 4px;
+  animation: prompts-wave 1.4s ease-in-out infinite;
+  transform-origin: 70% 70%;
+}
+
+@keyframes prompts-wave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+}
+
+.prompts__hello-sub {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.prompts__hello-sub strong {
+  color: #334155;
+  font-weight: 600;
+  margin: 0 2px;
+}
+
+/* 统计卡 */
+.prompts__hello-stats {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.prompts__stat {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 4px 0 8px;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  min-width: 160px;
 }
 
-.prompts__title {
-  margin: 0 0 4px;
-  font-size: 22px;
-  font-weight: 600;
-  color: #1f2937;
+.prompts__stat-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 18px;
 }
 
-.prompts__sub {
-  margin: 0;
-  font-size: 13px;
-  color: #475569;
+.prompts__stat-icon--fire {
+  background: #fff7ed;
+  color: #f97316;
 }
 
+.prompts__stat-icon--blue {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.prompts__stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prompts__stat-label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.prompts__stat-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.3px;
+}
+
+.prompts__stat-value em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-left: 2px;
+}
+
+/* ---------- 工具栏包装 ---------- */
+.prompts__toolbar {}
+
+/* ---------- 主列表 ---------- */
 .prompts__main {
   min-height: 240px;
 }
 
+/* ---------- 分页 ---------- */
 .prompts__pagination {
   display: flex;
   justify-content: center;
-  padding: 16px 0 0;
+  padding: 8px 0 24px;
 }
 
+/* ---------- 空态 ---------- */
 .prompts__empty {
   display: flex;
   flex-direction: column;
@@ -317,13 +472,13 @@ function handleLogout() {
   justify-content: center;
 }
 
-@media (max-width: 768px) {
-  .prompts {
-    padding: 12px 14px 24px;
-  }
-  .prompts__header {
-    flex-direction: column;
-    align-items: stretch;
-  }
+@media (max-width: 960px) {
+  .prompts__hello-stats { width: 100%; }
+  .prompts__stat { flex: 1; min-width: 0; }
+}
+
+@media (max-width: 600px) {
+  .prompts__hello-title { font-size: 22px; }
+  .prompts__hello-stats { flex-direction: column; }
 }
 </style>

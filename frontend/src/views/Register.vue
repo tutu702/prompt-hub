@@ -48,37 +48,37 @@ watch(
   (v) => checkStrength(v),
 )
 
-const validatePassword = (_: unknown, value: string, callback: (err?: Error) => void) => {
+const validatePassword = (_: unknown, value: string, callback: (msg?: string) => void) => {
   if (!value) {
-    callback(new Error('请输入密码'))
+    callback('请输入密码')
     return
   }
   if (value.length < 8 || value.length > 64) {
-    callback(new Error('密码长度需为 8-64 位'))
+    callback('密码长度需为 8-64 位')
     return
   }
   if (!/[A-Za-z]/.test(value) || !/[0-9]/.test(value)) {
-    callback(new Error('密码必须同时包含字母与数字'))
+    callback('密码必须同时包含字母与数字')
     return
   }
   callback()
 }
 
-const validateConfirm = (_: unknown, value: string, callback: (err?: Error) => void) => {
+const validateConfirm = (_: unknown, value: string, callback: (msg?: string) => void) => {
   if (!value) {
-    callback(new Error('请再次输入密码'))
+    callback('请再次输入密码')
     return
   }
   if (value !== form.password) {
-    callback(new Error('两次输入的密码不一致'))
+    callback('两次输入的密码不一致')
     return
   }
   callback()
 }
 
-const validateAgreement = (_: unknown, value: boolean, callback: (err?: Error) => void) => {
+const validateAgreement = (_: unknown, value: boolean, callback: (msg?: string) => void) => {
   if (!value) {
-    callback(new Error('请阅读并同意用户协议与隐私政策'))
+    callback('请阅读并同意用户协议与隐私政策')
     return
   }
   callback()

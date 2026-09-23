@@ -1,7 +1,18 @@
 <script setup lang="ts">
 /**
- * 卡片网格列表（CSS Grid 自适应 1/2/3 列）。
- * 加载态显示 skeleton；空态由父组件判断渲染。
+ * 卡片网格列表。
+ *
+ * 列数自适应：
+ *   - ≥1280px → 4 列（对齐设计稿）
+ *   - ≥960px  → 3 列
+ *   - ≥640px  → 2 列
+ *   - <640px  → 1 列（移动端）
+ *
+ * 视图模式：
+ *   - 'card'（默认）：网格布局
+ *   - 'list'：单列紧凑列表
+ *
+ * 加载态显示骨架屏；空态由父组件通过 slot 渲染。
  */
 import type { Prompt } from '@/types'
 import PromptCard from './PromptCard.vue'
@@ -11,6 +22,7 @@ defineProps<{
   loading: boolean
   batchMode: boolean
   selectedIds: number[]
+  viewMode?: 'card' | 'list'
 }>()
 
 const emit = defineEmits<{
@@ -26,9 +38,15 @@ const emit = defineEmits<{
 
 <template>
   <div>
-    <div v-if="loading" class="prompt-grid">
+    <div
+      v-if="loading"
+      class="prompt-grid"
+      :class="[
+        list.length === 0 ? 'prompt-grid--cards' : `prompt-grid--cards`,
+      ]"
+    >
       <el-skeleton
-        v-for="i in 6"
+        v-for="i in 8"
         :key="i"
         :rows="3"
         animated
@@ -36,7 +54,13 @@ const emit = defineEmits<{
       />
     </div>
 
-    <div v-else-if="list.length > 0" class="prompt-grid">
+    <div
+      v-else-if="list.length > 0"
+      class="prompt-grid"
+      :class="[
+        viewMode === 'list' ? 'prompt-grid--list' : 'prompt-grid--cards',
+      ]"
+    >
       <PromptCard
         v-for="p in list"
         :key="p.id"
@@ -58,22 +82,51 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.prompt-grid {
+/* 卡片网格：4 列自适应，向下渐变 */
+.prompt-grid--cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
 }
 
+@media (min-width: 1280px) {
+  .prompt-grid--cards {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1279px) {
+  .prompt-grid--cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 640px) and (max-width: 959px) {
+  .prompt-grid--cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 列表视图（占位） */
+.prompt-grid--list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 骨架屏 */
 .prompt-grid__skeleton {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 16px 18px;
-  min-height: 156px;
+  border-radius: 14px;
+  padding: 18px;
+  min-height: 168px;
   border: 1px solid #eef2f7;
 }
 
 .prompt-grid__skeleton :deep(.el-skeleton__item) {
   height: 14px;
   margin-bottom: 10px;
+  border-radius: 4px;
 }
 </style>

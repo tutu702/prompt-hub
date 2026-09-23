@@ -41,6 +41,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '提示词库', layout: 'default', requiresAuth: true },
   },
   {
+    path: '/prompts/new',
+    name: 'PromptCreate',
+    component: () => import('@/views/PromptCreate.vue'),
+    meta: { title: '新建提示词', layout: 'default', requiresAuth: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFound.vue'),
@@ -67,12 +73,9 @@ router.beforeEach(async (to) => {
 
   const requiresAuth = to.meta?.requiresAuth === true
   const targetName = to.name as string | undefined
-  console.log('[beforeEach] requiresAuth =', requiresAuth)
-  console.log('[beforeEach] targetName =', targetName)
 
   // 鉴权守卫
   const loggedIn = userStore.isLoggedIn()
-  console.log('[beforeEach] userStore.isLoggedIn() =', loggedIn)
 
   // 0) 根路径根据登录态跳转：未登录 → /login；已登录 → /prompts
   if (to.path === '/') {

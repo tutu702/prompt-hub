@@ -7,7 +7,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { promptApi } from '@/api'
-import type { Prompt, PromptListQuery } from '@/types'
+import type { CreatePromptPayload, Prompt, PromptListQuery } from '@/types'
 
 export type SortKey = 'updated_desc' | 'created_desc' | 'title_asc'
 export type QInKey = 'title' | 'all'
@@ -139,6 +139,15 @@ export const usePromptStore = defineStore('prompt', () => {
     }
   }
 
+  /** 创建一条提示词（用于 /prompts/new 提交）。成功后 upsert 到列表顶部。 */
+  async function createPrompt(payload: CreatePromptPayload): Promise<Prompt> {
+    const created = await promptApi.createPrompt(payload)
+    list.value.unshift(created)
+    total.value += 1
+    cleanupSelection()
+    return created
+  }
+
   /** 重置过滤（保留页码为 1）。 */
   function resetFilters() {
     keyword.value = ''
@@ -180,6 +189,7 @@ export const usePromptStore = defineStore('prompt', () => {
     cleanupSelection,
     removeFromList,
     upsertOne,
+    createPrompt,
     resetFilters,
   }
 })
