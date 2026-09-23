@@ -188,16 +188,16 @@ function handleAiCreate() {
   router.push({ name: 'PromptCreate', query: { tab: 'ai' } })
 }
 
-function handleEdit(_p: PromptT) {
-  ElMessage.info('提示词编辑页即将开放')
+function handleEdit(p: PromptT) {
+  router.push({ path: `/prompts/${p.id}`, query: { mode: 'edit' } })
 }
 
 function handleTune(_p: PromptT) {
   ElMessage.info('AI 调优即将开放')
 }
 
-function handleDetail(_p: PromptT) {
-  ElMessage.info('提示词详情页即将开放')
+function handleDetail(p: PromptT) {
+  router.push(`/prompts/${p.id}`)
 }
 
 function onPageChange(p: number) {

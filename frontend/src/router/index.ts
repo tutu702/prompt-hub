@@ -41,10 +41,22 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '提示词库', layout: 'default', requiresAuth: true },
   },
   {
+    path: '/categories',
+    name: 'Categories',
+    component: () => import('@/views/Categories.vue'),
+    meta: { title: '分类管理', layout: 'default', requiresAuth: true },
+  },
+  {
     path: '/prompts/new',
     name: 'PromptCreate',
     component: () => import('@/views/PromptCreate.vue'),
     meta: { title: '新建提示词', layout: 'default', requiresAuth: true },
+  },
+  {
+    path: '/prompts/:id(\\d+)',
+    name: 'PromptDetail',
+    component: () => import('@/views/PromptDetail.vue'),
+    meta: { title: '提示词详情', layout: 'default', requiresAuth: true },
   },
   {
     path: '/:pathMatch(.*)*',

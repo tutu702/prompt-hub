@@ -7,7 +7,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { promptApi } from '@/api'
-import type { CreatePromptPayload, Prompt, PromptListQuery } from '@/types'
+import type { CreatePromptPayload, Prompt, PromptListQuery, UpdatePromptPayload } from '@/types'
 
 export type SortKey = 'updated_desc' | 'created_desc' | 'title_asc'
 export type QInKey = 'title' | 'all'
@@ -148,6 +148,13 @@ export const usePromptStore = defineStore('prompt', () => {
     return created
   }
 
+  /** 更新一条提示词（详情页编辑后 / 列表收藏切换后）。成功后 upsert 同步列表。 */
+  async function updatePrompt(id: number, payload: UpdatePromptPayload): Promise<Prompt> {
+    const updated = await promptApi.updatePrompt(id, payload)
+    upsertOne(updated)
+    return updated
+  }
+
   /** 重置过滤（保留页码为 1）。 */
   function resetFilters() {
     keyword.value = ''
@@ -190,6 +197,7 @@ export const usePromptStore = defineStore('prompt', () => {
     removeFromList,
     upsertOne,
     createPrompt,
+    updatePrompt,
     resetFilters,
   }
 })

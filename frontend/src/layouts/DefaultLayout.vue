@@ -43,7 +43,7 @@ const userInitial = computed(() => {
 /** 主导航菜单（高亮由 router-link-active 自动处理） */
 const navItems = [
   { label: '首页', to: '/prompts' },
-  { label: '分类', to: '/prompts' },
+  { label: '分类', to: '/categories' },
   { label: 'AI 调优', to: '/prompts' },
   { label: '设置', to: '/prompts' },
 ] as const
