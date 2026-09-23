@@ -109,6 +109,14 @@ func (s *CategoryService) List(ctx context.Context, userID uint) ([]*model.Categ
 	return s.repo.List(ctx, userID)
 }
 
+// PromptCount 统计某分类下提示词数量（用于 List 聚合 prompt_count）。
+func (s *CategoryService) PromptCount(ctx context.Context, userID, categoryID uint) (int64, error) {
+	if s.promptN == nil {
+		return 0, nil
+	}
+	return s.promptN(ctx, userID, categoryID)
+}
+
 // Update 更新分类（指针为 nil 表示不改）。
 func (s *CategoryService) Update(ctx context.Context, userID, id uint, in CategoryInput) (*model.Category, error) {
 	fields := map[string]any{}

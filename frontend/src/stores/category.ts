@@ -72,46 +72,50 @@ export const useCategoryStore = defineStore('category', () => {
     list.value = list.value.filter((x) => x.id !== id)
   }
 
-  /** 上移：与上一行交换 sort，本地先换避免视觉跳动，失败回滚 + reload。 */
+  /** 上移：把当前项 sort 设为比上一项小 1（即使两者相等也能确保交换）。
+   *  视觉上"立即"交换，失败回滚 + reload。 */
   async function moveUp(id: number): Promise<void> {
     const idx = list.value.findIndex((x) => x.id === id)
     if (idx <= 0) return
     const cur = list.value[idx]
     const prev = list.value[idx - 1]
-    const curSort = cur.sort
-    cur.sort = prev.sort
-    prev.sort = curSort
+    const originalCurSort = cur.sort
+    const originalPrevSort = prev.sort
+    // 关键：cur.sort = prev.sort - 1，确保即使原值相等也能产生新的排序
+    cur.sort = prev.sort - 1
+    prev.sort = cur.sort + 1
     try {
       await Promise.all([
         categoryApi.updateCategory(cur.id, { sort: cur.sort }),
         categoryApi.updateCategory(prev.id, { sort: prev.sort }),
       ])
     } catch (e) {
-      prev.sort = cur.sort
-      cur.sort = curSort
+      cur.sort = originalCurSort
+      prev.sort = originalPrevSort
       await loadIfNeed(true)
       throw e instanceof Error ? e : new Error('排序更新失败，已回滚')
     }
     sortList()
   }
 
-  /** 下移：与下一行交换 sort。 */
+  /** 下移：把当前项 sort 设为比下一项大 1。 */
   async function moveDown(id: number): Promise<void> {
     const idx = list.value.findIndex((x) => x.id === id)
     if (idx < 0 || idx >= list.value.length - 1) return
     const cur = list.value[idx]
     const next = list.value[idx + 1]
-    const curSort = cur.sort
-    cur.sort = next.sort
-    next.sort = curSort
+    const originalCurSort = cur.sort
+    const originalNextSort = next.sort
+    cur.sort = next.sort + 1
+    next.sort = cur.sort - 1
     try {
       await Promise.all([
         categoryApi.updateCategory(cur.id, { sort: cur.sort }),
         categoryApi.updateCategory(next.id, { sort: next.sort }),
       ])
     } catch (e) {
-      next.sort = cur.sort
-      cur.sort = curSort
+      cur.sort = originalCurSort
+      next.sort = originalNextSort
       await loadIfNeed(true)
       throw e instanceof Error ? e : new Error('排序更新失败，已回滚')
     }

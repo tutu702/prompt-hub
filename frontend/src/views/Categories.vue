@@ -15,8 +15,8 @@ import {
   Plus as PlusIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Top as TopIcon,
-  Bottom as BottomIcon,
+  ArrowUp as ArrowUpIcon,
+  ArrowDown as ArrowDownIcon,
   Rank as DragIcon,
   CopyDocument as CopyIcon,
   WarningFilled as WarnIcon,
@@ -26,7 +26,7 @@ import {
 import CategoryFormDialog from '@/components/categories/CategoryFormDialog.vue'
 import { useCategoryStore } from '@/stores/category'
 import type { Category, CreateCategoryPayload, UpdateCategoryPayload } from '@/types'
-import { formatRelativeTime } from '@/utils'
+import { formatDate } from '@/utils'
 
 const categoryStore = useCategoryStore()
 
@@ -238,7 +238,7 @@ async function copyColor(c: Category) {
       <el-table-column label="创建时间" min-width="140">
         <template #default="{ row }">
           <span class="categories__time" :title="fullTime((row as Category).created_at)">
-            {{ formatRelativeTime((row as Category).created_at) }}
+            {{ formatDate((row as Category).created_at, true) }}
           </span>
         </template>
       </el-table-column>
@@ -246,7 +246,7 @@ async function copyColor(c: Category) {
       <el-table-column label="更新时间" min-width="140">
         <template #default="{ row }">
           <span class="categories__time" :title="fullTime((row as Category).updated_at)">
-            {{ formatRelativeTime((row as Category).updated_at) }}
+            {{ formatDate((row as Category).updated_at, true) }}
           </span>
         </template>
       </el-table-column>
@@ -261,7 +261,7 @@ async function copyColor(c: Category) {
               :disabled="rowIndex(row as Category) <= 0"
               @click="handleMoveUp(row as Category)"
             >
-              <el-icon><TopIcon /></el-icon>
+              <el-icon><ArrowUpIcon /></el-icon>
             </button>
             <button
               type="button"
@@ -270,7 +270,7 @@ async function copyColor(c: Category) {
               :disabled="rowIndex(row as Category) >= categoryStore.list.length - 1"
               @click="handleMoveDown(row as Category)"
             >
-              <el-icon><BottomIcon /></el-icon>
+              <el-icon><ArrowDownIcon /></el-icon>
             </button>
             <button
               type="button"

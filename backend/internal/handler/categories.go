@@ -38,7 +38,12 @@ func (h *CategoryHandler) List(c *gin.Context) {
 	}
 	dtos := make([]dto.CategoryDTO, 0, len(list))
 	for _, item := range list {
-		dtos = append(dtos, toCategoryDTO(item))
+		dtoItem := toCategoryDTO(item)
+		// 聚合 prompt_count（N+1 在分类数 ≤50 可接受；后续分类多再考虑 SQL JOIN）
+		if n, err := h.svc.PromptCount(c.Request.Context(), claims.UserID, item.ID); err == nil {
+			dtoItem.PromptCount = n
+		}
+		dtos = append(dtos, dtoItem)
 	}
 	response.OK(c, gin.H{"list": dtos})
 }

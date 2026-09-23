@@ -13,6 +13,17 @@ export function formatRelativeTime(date: Date | string): string {
   return d.toLocaleDateString('zh-CN')
 }
 
+/** 格式化为具体日期（如"2026-09-23"），加 time 部分用于详情展示。 */
+export function formatDate(date: Date | string, withTime = false): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const ymd = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  if (!withTime) return ymd
+  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${ymd} ${hm}`
+}
+
 /** 复制文本到剪贴板 */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
