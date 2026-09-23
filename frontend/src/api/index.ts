@@ -6,3 +6,5 @@ export { default as http, type ApiResponse, type PageRequest, type PageResult } 
 
 // 业务接口
 export * as authApi from './modules/auth'
+export * as promptApi from './modules/prompt'
+export * as categoryApi from './modules/category'

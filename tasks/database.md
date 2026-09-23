@@ -73,6 +73,9 @@
 
 ### 6.2 `ph_categories` 分类表
 
+> 已创建：见 `backend/internal/model/category.go`；启动时由 server 自动调用 `AutoMigrate` 建表。
+> 字段定义如下：
+
 | 字段 | 类型 | 约束 |
 | --- | --- | --- |
 | id | BIGINT | PK |
@@ -85,6 +88,9 @@
 
 ### 6.3 `ph_prompts` 提示词表
 
+> 已创建：见 `backend/internal/model/prompt.go`；启动时由 server 自动调用 `AutoMigrate` 建表。
+> 字段定义如下：
+
 | 字段 | 类型 | 约束 |
 | --- | --- | --- |
 | id | BIGINT | PK |
@@ -94,7 +100,7 @@
 | description | VARCHAR(200) |  |
 | content | TEXT | NOT NULL |
 | is_favorite | BOOLEAN | DEFAULT false |
-| tags | JSON/ARRAY |  |
+| tags | TEXT | 存 JSON 字符串（如 `["spinner","中文"]`） |
 | version_no | INT | DEFAULT 1 |
 
 ### 6.4 `ph_tune_histories` 调优历史表

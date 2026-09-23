@@ -4,7 +4,9 @@
 //   - GET /healthz
 //   - GET /api/v1/version
 //   - /api/v1/auth/{register,login,refresh}（公开）
-//   - /api/v1/auth/logout, /api/v1/prompts（受 JWT 中间件保护）
+//   - /api/v1/auth/logout（受 JWT 中间件保护）
+//   - /api/v1/prompts/*（受 JWT 保护）
+//   - /api/v1/categories/*（受 JWT 保护）
 //
 // 其它业务接口按 PRD 章节 8 在后续迭代加入。
 package router
@@ -26,6 +28,8 @@ type Options struct {
 	Logger     *zap.Logger
 	Health     *handler.HealthHandler
 	Auth       *handler.AuthHandler
+	Category   *handler.CategoryHandler
+	Prompt     *handler.PromptHandler
 	JWTManager *jwtpkg.Manager
 }
 
@@ -63,12 +67,26 @@ func New(opt Options) *gin.Engine {
 			auth.POST("/refresh", opt.Auth.Refresh)
 		}
 
-		// ---- 鉴权：受保护 ----
+		// ---- 受保护 ----
 		protected := api.Group("")
 		protected.Use(middleware.JWT(opt.JWTManager, opt.Logger))
 		{
 			protected.POST("/auth/logout", opt.Auth.Logout)
-			protected.GET("/prompts", handler.PromptsPlaceholder)
+
+			// 提示词
+			protected.GET("/prompts", opt.Prompt.List)
+			protected.POST("/prompts", opt.Prompt.Create)
+			protected.GET("/prompts/:id", opt.Prompt.Get)
+			protected.PUT("/prompts/:id", opt.Prompt.Update)
+			protected.DELETE("/prompts/:id", opt.Prompt.Delete)
+			protected.POST("/prompts/batch-delete", opt.Prompt.BatchDelete)
+			protected.POST("/prompts/:id/favorite", opt.Prompt.ToggleFavorite)
+
+			// 分类
+			protected.GET("/categories", opt.Category.List)
+			protected.POST("/categories", opt.Category.Create)
+			protected.PUT("/categories/:id", opt.Category.Update)
+			protected.DELETE("/categories/:id", opt.Category.Delete)
 		}
 	}
 

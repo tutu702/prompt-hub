@@ -70,3 +70,12 @@ func Message(code int) string {
 	}
 	return "未知错误"
 }
+
+// HTTPStatus 返回业务码对应的 HTTP 状态码。
+// 业务码与 HTTP 状态码当前采用同一套数字约定；如未来需要解耦，仅替换本函数实现。
+func HTTPStatus(code int) int {
+	if code >= 200 && code < 600 {
+		return code
+	}
+	return 500
+}

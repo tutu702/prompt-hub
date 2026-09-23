@@ -4,7 +4,7 @@
  *
  * 字段：邮箱、密码、记住我；登录成功跳 /prompts 或 redirect 指定页面。
  */
-import { reactive, ref } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -33,13 +33,20 @@ const rules: FormRules = {
   ],
 }
 
-function getRedirect(): string {
-  const raw = route.query.redirect
-  if (typeof raw === 'string' && /^\/(?!\/)/.test(raw)) {
-    return raw
-  }
-  return '/prompts'
-}
+// 跳转目标：默认 /prompts；如果带 redirect query 且合法则带上，
+// 登录成功后再交给 router 守卫去用 redirect 二次回跳
+const targetPath = ref<string>('/prompts')
+watch(
+  () => route.query.redirect,
+  (r) => {
+    if (typeof r === 'string' && /^\/(?!\/)/.test(r)) {
+      targetPath.value = r
+    } else {
+      targetPath.value = '/prompts'
+    }
+  },
+  { immediate: true },
+)
 
 async function onSubmit() {
   if (!formRef.value) return
@@ -54,8 +61,13 @@ async function onSubmit() {
       remember: form.remember,
     })
     ElMessage.success('登录成功')
-    router.replace(getRedirect())
+
+    // 等一帧让 store reactivity 落定，然后用浏览器原生 location.href 强制跳转
+    // （window.location.href 一定会触发完整页面跳转，是最可靠的方案）
+    await nextTick()
+    window.location.href = targetPath.value
   } catch (err) {
+    console.error('[Login] onSubmit 异常', err)
     const msg = err instanceof Error ? err.message : '邮箱或密码错误'
     ElMessage.error(msg || '邮箱或密码错误')
   } finally {

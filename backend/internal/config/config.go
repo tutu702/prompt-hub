@@ -130,5 +130,13 @@ func Load() (*Config, error) {
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("解析配置失败: %w", err)
 	}
+
+	// 修复：Viper v1.21 + mapstructure/v2 默认不会把 "2h" 解析成 time.Duration，
+	// 导致 cfg.JWT.AccessExpire / RefreshExpire 始终为 0，进而让登录响应的
+	// expires_in 也变成 0，前端 token 立即"过期"。
+	// 用 viper 自带的 GetDuration 显式覆盖一次。
+	cfg.JWT.AccessExpire = v.GetDuration("jwt.access_expire")
+	cfg.JWT.RefreshExpire = v.GetDuration("jwt.refresh_expire")
+
 	return cfg, nil
 }

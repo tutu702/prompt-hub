@@ -5,6 +5,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -53,6 +54,43 @@ func Ping(db *gorm.DB) error {
 		return err
 	}
 	return sqlDB.Ping()
+}
+
+// WithTx 在事务中运行 fn。fn 返回 nil → Commit；返回 err → Rollback。
+// fn 的返回值会被原样作为 WithTx 的返回值透传给调用方。
+//
+// 使用示例：
+//
+//	err := database.WithTx(ctx, db, func(tx *gorm.DB) error {
+//	    if err := tx.Create(&a).Error; err != nil { return err }
+//	    if err := tx.Create(&b).Error; err != nil { return err }
+//	    return nil
+//	})
+func WithTx(ctx context.Context, db *gorm.DB, fn func(tx *gorm.DB) error) (err error) {
+	if db == nil {
+		return gorm.ErrInvalidDB
+	}
+	tx := db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback().Error
+			panic(p)
+		}
+		if err != nil {
+			if rbErr := tx.Rollback().Error; rbErr != nil {
+				err = fmt.Errorf("%w (rollback err: %v)", err, rbErr)
+			}
+			return
+		}
+		if cmErr := tx.Commit().Error; cmErr != nil {
+			err = cmErr
+		}
+	}()
+	err = fn(tx)
+	return
 }
 
 // stdPrintfWriter 将 os.Stdout 适配到 gorm logger.Writer 接口（仅 Printf）。

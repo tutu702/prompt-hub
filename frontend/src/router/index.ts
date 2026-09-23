@@ -11,7 +11,10 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/home',
+    name: 'Root',
+    // 真正的跳转在 beforeEach 里根据登录态动态决定
+    component: () => import('@/views/Home.vue'),
+    meta: { title: '首页', layout: 'default', requiresAuth: false },
   },
   {
     path: '/home',
@@ -64,9 +67,22 @@ router.beforeEach(async (to) => {
 
   const requiresAuth = to.meta?.requiresAuth === true
   const targetName = to.name as string | undefined
+  console.log('[beforeEach] requiresAuth =', requiresAuth)
+  console.log('[beforeEach] targetName =', targetName)
+
+  // 鉴权守卫
+  const loggedIn = userStore.isLoggedIn()
+  console.log('[beforeEach] userStore.isLoggedIn() =', loggedIn)
+
+  // 0) 根路径根据登录态跳转：未登录 → /login；已登录 → /prompts
+  if (to.path === '/') {
+    return loggedIn
+      ? { name: 'Prompts', replace: true }
+      : { name: 'Login', replace: true }
+  }
 
   // 1) 受保护路由未登录 → 跳登录
-  if (requiresAuth && !userStore.isLoggedIn) {
+  if (requiresAuth && !loggedIn) {
     const redirect = to.fullPath && /^\/(?!\/)/.test(to.fullPath) ? to.fullPath : undefined
     return {
       name: 'Login',
@@ -76,7 +92,7 @@ router.beforeEach(async (to) => {
   }
 
   // 2) 已登录访问 /login 或 /register → 跳提示词库
-  if (userStore.isLoggedIn && (targetName === 'Login' || targetName === 'Register')) {
+  if (loggedIn && (targetName === 'Login' || targetName === 'Register')) {
     return { name: 'Prompts', replace: true }
   }
 

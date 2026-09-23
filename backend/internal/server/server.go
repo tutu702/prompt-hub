@@ -48,32 +48,53 @@ func New(cfg *config.Config, log *zap.Logger) *HTTPServer {
 
 	// AutoMigrate 业务表（骨架阶段：失败仅 warn；生产请替换为独立 migration 工具）
 	if db != nil {
-		if err := db.AutoMigrate(&model.User{}); err != nil {
-			log.Warn("AutoMigrate 失败，登录注册相关接口将无法使用", zap.Error(err))
+		if err := db.AutoMigrate(
+			&model.User{},
+			&model.Category{},
+			&model.Prompt{},
+		); err != nil {
+			log.Warn("AutoMigrate 失败，登录注册/提示词相关接口将无法使用", zap.Error(err))
 		} else {
-			log.Info("AutoMigrate 完成：ph_users")
+			log.Info("AutoMigrate 完成：ph_users / ph_categories / ph_prompts")
 		}
 	}
 
 	// 构造 JWT 管理器
 	jwtMgr := jwtpkg.NewManager(cfg.JWT.Secret, cfg.JWT.Issuer, cfg.JWT.AccessExpire, cfg.JWT.RefreshExpire)
+	log.Info("JWT 配置已加载",
+		zap.Duration("access_expire", cfg.JWT.AccessExpire),
+		zap.Duration("refresh_expire", cfg.JWT.RefreshExpire),
+		zap.String("issuer", cfg.JWT.Issuer),
+	)
 
-	// 构造鉴权服务（依赖 db；db 为 nil 时 login/register 将返回 500）
-	var userRepo repository.UserRepo
+	// 构造 repository / service / handler
+	var (
+		userRepo     repository.UserRepo
+		categoryRepo repository.CategoryRepo
+		promptRepo   repository.PromptRepo
+	)
 	if db != nil {
 		userRepo = gormrepo.NewUserRepo(db)
+		categoryRepo = gormrepo.NewCategoryRepo(db)
+		promptRepo = gormrepo.NewPromptRepo(db)
 	}
-	authSvc := service.NewAuthService(userRepo, jwtMgr, log)
 
-	// 装配 handler
+	authSvc := service.NewAuthService(userRepo, jwtMgr, log)
+	categorySvc := service.NewCategoryService(categoryRepo, promptRepo.CountByCategory, log)
+	promptSvc := service.NewPromptService(promptRepo, categoryRepo, log)
+
 	healthH := handler.NewHealthHandler(cfg, db)
 	authH := handler.NewAuthHandler(authSvc, log)
+	categoryH := handler.NewCategoryHandler(categorySvc, log)
+	promptH := handler.NewPromptHandler(promptSvc, log)
 
 	engine := router.New(router.Options{
 		Cfg:        cfg,
 		Logger:     log,
 		Health:     healthH,
 		Auth:       authH,
+		Category:   categoryH,
+		Prompt:     promptH,
 		JWTManager: jwtMgr,
 	})
 

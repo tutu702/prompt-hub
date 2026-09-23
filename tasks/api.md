@@ -80,7 +80,17 @@
 | POST | `/api/v1/auth/login` | 邮箱+密码登录；统一提示"邮箱或密码错误"（防枚举） | 否 |
 | POST | `/api/v1/auth/refresh` | 用 refresh_token 换取新 access_token | 否 |
 | POST | `/api/v1/auth/logout` | 登出（本期服务端无副作用，前端清 token） | 是 |
-| GET | `/api/v1/prompts` | 提示词占位接口（仅验证鉴权流程） | 是 |
+| GET | `/api/v1/prompts` | 提示词列表（分页+搜索+筛选+排序） | 是 |
+| POST | `/api/v1/prompts` | 创建提示词 | 是 |
+| GET | `/api/v1/prompts/:id` | 提示词详情 | 是 |
+| PUT | `/api/v1/prompts/:id` | 更新提示词（增量） | 是 |
+| DELETE | `/api/v1/prompts/:id` | 软删提示词（30 天可恢复） | 是 |
+| POST | `/api/v1/prompts/batch-delete` | 批量软删提示词 | 是 |
+| POST | `/api/v1/prompts/:id/favorite` | 切换收藏标记 | 是 |
+| GET | `/api/v1/categories` | 列出当前用户的所有分类 | 是 |
+| POST | `/api/v1/categories` | 创建分类 | 是 |
+| PUT | `/api/v1/categories/:id` | 更新分类（增量） | 是 |
+| DELETE | `/api/v1/categories/:id` | 软删分类；分类下存在提示词时返回 409 | 是 |
 
 ## 5. 后续按 PRD 实现的接口（待办）
 

@@ -66,3 +66,94 @@ export interface RefreshResult {
   refresh_token: string
   expires_in: number
 }
+
+/* ---------- 提示词 / 分类 ---------- */
+
+/** 提示词 */
+export interface Prompt {
+  id: number
+  user_id: number
+  category_id?: number | null
+  title: string
+  description: string
+  content: string
+  is_favorite: boolean
+  tags: string[]
+  version_no: number
+  created_at: string
+  updated_at: string
+}
+
+/** 分类 */
+export interface Category {
+  id: number
+  user_id: number
+  name: string
+  color: string
+  sort: number
+  created_at: string
+  updated_at: string
+  prompt_count?: number
+}
+
+/** 列表查询参数 */
+export interface PromptListQuery {
+  page?: number
+  page_size?: number
+  keyword?: string
+  q_in?: 'title' | 'all'
+  category_id?: number | null
+  is_favorite?: boolean
+  sort?: 'updated_desc' | 'created_desc' | 'title_asc'
+}
+
+/** 列表返回（与 response.Page(c, ...) 一致） */
+export interface PromptListResult {
+  list: Prompt[]
+  total: number
+  page: number
+  page_size: number
+}
+
+/** 创建提示词 */
+export interface CreatePromptPayload {
+  title: string
+  description?: string
+  content: string
+  category_id?: number | null
+  tags?: string[]
+}
+
+/** 更新提示词（所有字段可选） */
+export interface UpdatePromptPayload {
+  title?: string
+  description?: string
+  content?: string
+  category_id?: number | null
+  tags?: string[]
+  is_favorite?: boolean
+}
+
+/** 创建分类 */
+export interface CreateCategoryPayload {
+  name: string
+  color?: string
+  sort?: number
+}
+
+/** 更新分类 */
+export interface UpdateCategoryPayload {
+  name?: string
+  color?: string
+  sort?: number
+}
+
+/** 批量删除 */
+export interface BatchDeletePayload {
+  ids: number[]
+}
+
+/** 切换收藏 */
+export interface ToggleFavoritePayload {
+  is_favorite: boolean
+}

@@ -5,7 +5,7 @@
  * 字段：邮箱、密码（含强度提示）、确认密码、昵称（可选）、协议勾选。
  * 注册成功自动登录并跳转 /prompts。
  */
-import { reactive, ref, watch } from 'vue'
+import { nextTick, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -110,7 +110,10 @@ async function onSubmit() {
       agreement: form.agreement,
     })
     ElMessage.success('注册成功，已自动登录')
-    router.replace('/prompts')
+
+    // 等一帧让 store reactivity 落定，然后用浏览器原生 location.href 强制跳转
+    await nextTick()
+    window.location.href = '/prompts'
   } catch (err) {
     const msg = err instanceof Error ? err.message : '注册失败'
     ElMessage.error(msg || '注册失败')
