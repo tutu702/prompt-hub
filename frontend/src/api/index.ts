@@ -8,3 +8,4 @@ export { default as http, type ApiResponse, type PageRequest, type PageResult } 
 export * as authApi from './modules/auth'
 export * as promptApi from './modules/prompt'
 export * as categoryApi from './modules/category'
+export * as tuneApi from './modules/tune'

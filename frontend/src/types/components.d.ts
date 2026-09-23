@@ -37,6 +37,7 @@ declare module 'vue' {
     ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
     ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSkeleton: typeof import('element-plus/es')['ElSkeleton']
+    ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTable: typeof import('element-plus/es')['ElTable']
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
     ElTabPane: typeof import('element-plus/es')['ElTabPane']
@@ -47,10 +48,13 @@ declare module 'vue' {
     PromptDetailReadonly: typeof import('./../components/prompts/PromptDetailReadonly.vue')['default']
     PromptForm: typeof import('./../components/prompts/PromptForm.vue')['default']
     PromptList: typeof import('./../components/prompts/PromptList.vue')['default']
+    PromptOriginalPanel: typeof import('./../components/tune/PromptOriginalPanel.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Toolbar: typeof import('./../components/prompts/Toolbar.vue')['default']
     TuneHistoryPanel: typeof import('./../components/prompts/TuneHistoryPanel.vue')['default']
+    TuneRequestForm: typeof import('./../components/tune/TuneRequestForm.vue')['default']
+    TuneResultPanel: typeof import('./../components/tune/TuneResultPanel.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']

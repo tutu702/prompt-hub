@@ -59,6 +59,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '提示词详情', layout: 'default', requiresAuth: true },
   },
   {
+    path: '/prompts/:id(\\d+)/tune',
+    name: 'PromptTune',
+    component: () => import('@/views/PromptTune.vue'),
+    meta: { title: 'AI 调优', layout: 'default', requiresAuth: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFound.vue'),

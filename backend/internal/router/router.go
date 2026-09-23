@@ -24,13 +24,15 @@ import (
 
 // Options 路由注册需要的依赖。
 type Options struct {
-	Cfg        *config.Config
-	Logger     *zap.Logger
-	Health     *handler.HealthHandler
-	Auth       *handler.AuthHandler
-	Category   *handler.CategoryHandler
-	Prompt     *handler.PromptHandler
-	JWTManager *jwtpkg.Manager
+	Cfg         *config.Config
+	Logger      *zap.Logger
+	Health      *handler.HealthHandler
+	Auth        *handler.AuthHandler
+	Category    *handler.CategoryHandler
+	Prompt      *handler.PromptHandler
+	TuneHistory *handler.TuneHistoryHandler
+	LLMConfig   *handler.LLMConfigHandler
+	JWTManager  *jwtpkg.Manager
 }
 
 // New 构建 *gin.Engine。
@@ -87,6 +89,21 @@ func New(opt Options) *gin.Engine {
 			protected.POST("/categories", opt.Category.Create)
 			protected.PUT("/categories/:id", opt.Category.Update)
 			protected.DELETE("/categories/:id", opt.Category.Delete)
+
+			// 调优历史（嵌套在 prompts 下）
+			protected.POST("/prompts/:id/tune-histories", opt.TuneHistory.Create)
+			protected.GET("/prompts/:id/tune-histories", opt.TuneHistory.List)
+			protected.GET("/tune-histories/:id", opt.TuneHistory.Get)
+			protected.POST("/tune-histories/:id/apply", opt.TuneHistory.Apply)
+
+			// 大模型配置
+			protected.POST("/llm-configs", opt.LLMConfig.Create)
+			protected.GET("/llm-configs", opt.LLMConfig.List)
+			protected.GET("/llm-configs/:id", opt.LLMConfig.Get)
+			protected.PUT("/llm-configs/:id", opt.LLMConfig.Update)
+			protected.DELETE("/llm-configs/:id", opt.LLMConfig.Delete)
+			protected.POST("/llm-configs/:id/default", opt.LLMConfig.SetDefault)
+			protected.POST("/llm-configs/:id/test-connection", opt.LLMConfig.TestConnection)
 		}
 	}
 

@@ -157,3 +157,42 @@ export interface BatchDeletePayload {
 export interface ToggleFavoritePayload {
   is_favorite: boolean
 }
+
+/* ---------- 调优历史 ---------- */
+
+/** 一条 AI 调优结果（P07） */
+export interface TuneHistory {
+  id: number
+  user_id: number
+  prompt_id: number
+  version_no: number
+  request_text: string
+  original_content: string
+  tuned_content: string
+  model_config_id?: number | null
+  is_applied: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** 创建调优历史入参 */
+export interface CreateTuneHistoryPayload {
+  request_text: string
+  original_content: string
+  tuned_content: string
+  model_config_id?: number | null
+}
+
+/** 调优历史列表查询 */
+export interface TuneHistoryListQuery {
+  page?: number
+  page_size?: number
+}
+
+/** 调优历史列表响应 */
+export interface TuneHistoryListResult {
+  list: TuneHistory[]
+  total: number
+  page: number
+  page_size: number
+}

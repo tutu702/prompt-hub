@@ -145,7 +145,8 @@ async function handleDelete() {
 }
 
 function handleTune() {
-  ElMessage.info('AI 调优即将开放')
+  if (!prompt.value) return
+  router.push(`/prompts/${prompt.value.id}/tune`)
 }
 
 /* ---------- 编辑模式 ---------- */

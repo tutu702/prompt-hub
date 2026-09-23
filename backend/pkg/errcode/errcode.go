@@ -32,6 +32,9 @@ const (
 	// CodeGatewayTimeout 上游超时
 	CodeGatewayTimeout = 504
 
+	// CodeServiceUnavailable 服务不可用（503 语义别名；给业务层区分场景用）
+	CodeServiceUnavailable = CodeUnavailable
+
 	// ----- 鉴权相关业务码（与通用码同值，提供语义化常量名） -----
 
 	// CodeInvalidCredential 登录凭据错误（统一提示"邮箱或密码错误"，防枚举）。

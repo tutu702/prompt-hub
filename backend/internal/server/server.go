@@ -13,6 +13,7 @@ import (
 	"github.com/prompthub/prompthub/internal/config"
 	"github.com/prompthub/prompthub/internal/handler"
 	jwtpkg "github.com/prompthub/prompthub/internal/pkg/jwt"
+	cryptopkg "github.com/prompthub/prompthub/internal/pkg/crypto"
 	"github.com/prompthub/prompthub/internal/model"
 	"github.com/prompthub/prompthub/internal/pkg/database"
 	"github.com/prompthub/prompthub/internal/pkg/response"
@@ -52,10 +53,12 @@ func New(cfg *config.Config, log *zap.Logger) *HTTPServer {
 			&model.User{},
 			&model.Category{},
 			&model.Prompt{},
+			&model.TuneHistory{},
+			&model.LLMConfig{},
 		); err != nil {
 			log.Warn("AutoMigrate 失败，登录注册/提示词相关接口将无法使用", zap.Error(err))
 		} else {
-			log.Info("AutoMigrate 完成：ph_users / ph_categories / ph_prompts")
+			log.Info("AutoMigrate 完成：ph_users / ph_categories / ph_prompts / ph_tune_histories / ph_llm_configs")
 		}
 	}
 
@@ -69,33 +72,57 @@ func New(cfg *config.Config, log *zap.Logger) *HTTPServer {
 
 	// 构造 repository / service / handler
 	var (
-		userRepo     repository.UserRepo
-		categoryRepo repository.CategoryRepo
-		promptRepo   repository.PromptRepo
+		userRepo           repository.UserRepo
+		categoryRepo       repository.CategoryRepo
+		promptRepo         repository.PromptRepo
+		tuneHistoryRepo    repository.TuneHistoryRepo
 	)
 	if db != nil {
 		userRepo = gormrepo.NewUserRepo(db)
 		categoryRepo = gormrepo.NewCategoryRepo(db)
 		promptRepo = gormrepo.NewPromptRepo(db)
+		tuneHistoryRepo = gormrepo.NewTuneHistoryRepo(db)
 	}
 
 	authSvc := service.NewAuthService(userRepo, jwtMgr, log)
 	categorySvc := service.NewCategoryService(categoryRepo, promptRepo.CountByCategory, log)
 	promptSvc := service.NewPromptService(promptRepo, categoryRepo, log)
+	tuneHistorySvc := service.NewTuneHistoryService(tuneHistoryRepo, promptRepo, log)
 
 	healthH := handler.NewHealthHandler(cfg, db)
 	authH := handler.NewAuthHandler(authSvc, log)
 	categoryH := handler.NewCategoryHandler(categorySvc, log)
 	promptH := handler.NewPromptHandler(promptSvc, log)
+	tuneHistoryH := handler.NewTuneHistoryHandler(tuneHistorySvc, log)
+
+	// P08 LLM 加密：AP Key 加密密钥
+	var aesSvc *cryptopkg.AES
+	if cfg.LLM.AESKey != "" {
+		a, err := cryptopkg.New()
+		if err != nil {
+			log.Warn("LLM 加密初始化失败，/llm-configs 接口将不可用", zap.Error(err))
+		} else {
+			aesSvc = a
+			log.Info("LLM 加密已加载")
+		}
+	} else {
+		log.Warn("未配置 PROMPTHUB_LLM_AES_KEY；/llm-configs 接口将返回 503")
+	}
+
+	llmConfigRepo := gormrepo.NewLLMConfigRepo(db)
+	llmConfigSvc := service.NewLLMConfigService(llmConfigRepo, aesSvc, log)
+	llmConfigH := handler.NewLLMConfigHandler(llmConfigSvc, log)
 
 	engine := router.New(router.Options{
-		Cfg:        cfg,
-		Logger:     log,
-		Health:     healthH,
-		Auth:       authH,
-		Category:   categoryH,
-		Prompt:     promptH,
-		JWTManager: jwtMgr,
+		Cfg:         cfg,
+		Logger:      log,
+		Health:      healthH,
+		Auth:        authH,
+		Category:    categoryH,
+		Prompt:      promptH,
+		TuneHistory: tuneHistoryH,
+		LLMConfig:   llmConfigH,
+		JWTManager:  jwtMgr,
 	})
 
 	srv := &http.Server{

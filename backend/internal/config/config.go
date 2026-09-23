@@ -19,6 +19,7 @@ type Config struct {
 	Log    Logger
 	DB     Database
 	JWT    JWT
+	LLM    LLMConfig
 }
 
 // App 应用级别元信息。
@@ -70,6 +71,11 @@ type JWT struct {
 	Issuer         string
 }
 
+// LLMConfig 大模型配置（P08）：API Key 加密密钥（AES-GCM）。
+type LLMConfig struct {
+	AESKey string `mapstructure:"aes_key"`
+}
+
 // Load 按优先级加载配置。
 func Load() (*Config, error) {
 	v := viper.New()
@@ -108,6 +114,9 @@ func Load() (*Config, error) {
 	v.SetDefault("jwt.access_expire", "2h")
 	v.SetDefault("jwt.refresh_expire", "168h")
 	v.SetDefault("jwt.issuer", "prompthub")
+
+	// P08 LLM 配置
+	v.SetDefault("llm.aes_key", "")
 
 	// 配置文件
 	v.SetConfigName("config")

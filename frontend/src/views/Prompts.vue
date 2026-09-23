@@ -192,8 +192,8 @@ function handleEdit(p: PromptT) {
   router.push({ path: `/prompts/${p.id}`, query: { mode: 'edit' } })
 }
 
-function handleTune(_p: PromptT) {
-  ElMessage.info('AI 调优即将开放')
+function handleTune(p: PromptT) {
+  router.push(`/prompts/${p.id}/tune`)
 }
 
 function handleDetail(p: PromptT) {
