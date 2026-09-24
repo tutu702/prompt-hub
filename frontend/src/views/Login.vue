@@ -67,9 +67,24 @@ async function onSubmit() {
     await nextTick()
     window.location.href = targetPath.value
   } catch (err) {
-    console.error('[Login] onSubmit 异常', err)
-    const msg = err instanceof Error ? err.message : '邮箱或密码错误'
-    ElMessage.error(msg || '邮箱或密码错误')
+    // http 拦截器在以下场景会自己弹出中文 toast：
+    //   - HTTP 401（auth / 403 / 5xx / 网络异常）
+    // 业务错误（HTTP 200 + body.code !== 200）不会弹，这里兜底一次。
+    const e = err as {
+      response?: { status?: number; data?: { message?: string } }
+      businessCode?: number
+      serverMessage?: string
+    }
+    const hasHttpToast = !!e?.response?.status
+    const serverMsg = e?.response?.data?.message || e?.serverMessage
+    if (!hasHttpToast && serverMsg) {
+      ElMessage.error(serverMsg)
+    } else if (!hasHttpToast) {
+      ElMessage.error('邮箱或密码错误')
+    } else {
+      // 拦截器已经弹过，这里只打日志，避免重复 + 避免 axios 英文默认消息透出
+      console.error('[Login] onSubmit 异常', err)
+    }
   } finally {
     loading.value = false
   }

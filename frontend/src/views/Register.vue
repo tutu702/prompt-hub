@@ -115,8 +115,23 @@ async function onSubmit() {
     await nextTick()
     window.location.href = '/prompts'
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '注册失败'
-    ElMessage.error(msg || '注册失败')
+    // http 拦截器在以下场景会自己弹出中文 toast：
+    //   - HTTP 401（auth / 403 / 5xx / 网络异常）
+    // 业务错误（HTTP 200 + body.code !== 200）不会弹，这里兜底一次。
+    const e = err as {
+      response?: { status?: number; data?: { message?: string } }
+      businessCode?: number
+      serverMessage?: string
+    }
+    const hasHttpToast = !!e?.response?.status
+    const serverMsg = e?.response?.data?.message || e?.serverMessage
+    if (!hasHttpToast && serverMsg) {
+      ElMessage.error(serverMsg)
+    } else if (!hasHttpToast) {
+      ElMessage.error('注册失败')
+    } else {
+      console.error('[Register] onSubmit 异常', err)
+    }
   } finally {
     loading.value = false
   }

@@ -9,8 +9,9 @@
  * 区块：
  *   - profile：个人资料卡 + 基本资料表单（昵称 / 邮箱 / 注册时间 / 最近登录）
  *   - password：修改密码表单（UI 占位）
- *   - llm：跳转到 /settings/llm 大模型配置全页
  *   - export：数据导出占位
+ *
+ * 大模型配置已移出此侧栏，统一通过顶部「模型配置」入口进入 /settings/llm。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -23,7 +24,6 @@ import {
 import {
   User as UserNavIcon,
   Lock as LockNavIcon,
-  Connection as LLMNavIcon,
   Download as ExportNavIcon,
   Edit as EditIcon,
   CircleCheck as ShieldIcon,
@@ -37,8 +37,8 @@ const router = useRouter()
 const userStore = useUserStore()
 
 /* ---------- 侧栏导航 ---------- */
-type Section = 'profile' | 'password' | 'llm' | 'export'
-const validSections: Section[] = ['profile', 'password', 'llm', 'export']
+type Section = 'profile' | 'password' | 'export'
+const validSections: Section[] = ['profile', 'password', 'export']
 
 function parseSection(q: unknown): Section {
   const s = String(q || 'profile')
@@ -61,7 +61,6 @@ function switchSection(s: Section) {
 const navItems = computed(() => [
   { key: 'profile' as const, label: '个人资料', icon: UserNavIcon, soon: false },
   { key: 'password' as const, label: '修改密码', icon: LockNavIcon, soon: false },
-  { key: 'llm' as const, label: '大模型配置', icon: LLMNavIcon, soon: false },
   { key: 'export' as const, label: '数据导出', icon: ExportNavIcon, soon: true },
 ])
 
@@ -207,10 +206,6 @@ async function handleLogout() {
   } catch (err) {
     ElMessage.error((err as Error).message || '退出失败')
   }
-}
-
-function goLLM() {
-  router.push('/settings/llm')
 }
 </script>
 
@@ -392,23 +387,6 @@ function goLLM() {
               </el-button>
             </div>
           </el-form>
-        </article>
-      </section>
-
-      <!-- 大模型配置 -->
-      <section v-else-if="activeSection === 'llm'" class="settings__pane">
-        <header class="settings__pane-header">
-          <h2 class="settings__pane-title">大模型配置</h2>
-          <p class="settings__pane-sub">管理供应商、API Key 与默认模型</p>
-        </header>
-
-        <article class="settings__block settings__block--center">
-          <el-icon class="settings__block-icon"><LLMNavIcon /></el-icon>
-          <h3 class="settings__block-title">前往大模型配置全页</h3>
-          <p class="settings__block-sub">在独立页面管理所有 LLM 供应商、API Key 与默认模型。</p>
-          <el-button type="primary" :icon="RightArrowIcon" @click="goLLM">
-            前往大模型配置
-          </el-button>
         </article>
       </section>
 
