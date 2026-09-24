@@ -9,7 +9,6 @@ import { computed, ref, watch } from 'vue'
 import {
   Search as SearchIcon,
   Plus as PlusIcon,
-  MagicStick as MagicIcon,
   Grid as GridIcon,
   List as ListIcon,
 } from '@element-plus/icons-vue'
@@ -180,9 +179,6 @@ const selectedCount = computed(() => selectedIds.value.length)
 
       <el-button type="primary" :icon="PlusIcon" @click="emit('create')">
         新建提示词
-      </el-button>
-      <el-button type="primary" plain :icon="MagicIcon" @click="emit('ai-create')">
-        AI 一键生成
       </el-button>
     </div>
 

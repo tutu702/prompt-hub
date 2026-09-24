@@ -3,31 +3,31 @@
  * 统一设置页（PRD P09 重构版）。
  *
  * 布局（与设计图保持一致）：
- *   - 左侧侧栏：导航（个人资料 / 修改密码 / 大模型配置 / 数据导出）+ 账号安全建议
- *   - 右侧内容：根据 activeSection 切换四个区块
+ *   - 左侧侧栏：导航（个人资料 / 修改密码）+ 账号安全建议
+ *   - 右侧内容：根据 activeSection 切换两个区块
  *
  * 区块：
  *   - profile：个人资料卡 + 基本资料表单（昵称 / 邮箱 / 注册时间 / 最近登录）
- *   - password：修改密码表单（UI 占位）
- *   - export：数据导出占位
+ *   - password：修改密码表单 + 密码要求清单
  *
  * 大模型配置已移出此侧栏，统一通过顶部「模型配置」入口进入 /settings/llm。
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ElMessage,
   ElMessageBox,
+  ElNotification,
   type FormInstance,
   type FormRules,
 } from 'element-plus'
 import {
   User as UserNavIcon,
   Lock as LockNavIcon,
-  Download as ExportNavIcon,
   Edit as EditIcon,
   CircleCheck as ShieldIcon,
   Promotion as RightArrowIcon,
+  Check as CheckIcon,
 } from '@element-plus/icons-vue'
 
 import { useUserStore } from '@/stores/user'
@@ -37,8 +37,8 @@ const router = useRouter()
 const userStore = useUserStore()
 
 /* ---------- 侧栏导航 ---------- */
-type Section = 'profile' | 'password' | 'export'
-const validSections: Section[] = ['profile', 'password', 'export']
+type Section = 'profile' | 'password'
+const validSections: Section[] = ['profile', 'password']
 
 function parseSection(q: unknown): Section {
   const s = String(q || 'profile')
@@ -61,7 +61,6 @@ function switchSection(s: Section) {
 const navItems = computed(() => [
   { key: 'profile' as const, label: '个人资料', icon: UserNavIcon, soon: false },
   { key: 'password' as const, label: '修改密码', icon: LockNavIcon, soon: false },
-  { key: 'export' as const, label: '数据导出', icon: ExportNavIcon, soon: true },
 ])
 
 /* ---------- 数据加载 ---------- */
@@ -150,21 +149,61 @@ async function saveNickname() {
   }
 }
 
-/* ---------- password：修改密码表单（占位） ---------- */
+/* ---------- password：修改密码表单（PRD P10） ---------- */
 const pwdFormRef = ref<FormInstance>()
 const pwdForm = ref({ old: '', next: '', confirm: '' })
 const pwdSubmitting = ref(false)
+
+/** 密码强度校验：8-32 位且必须同时含字母与数字（与后端 isPasswordStrong 一致）。 */
+function isPasswordStrong(p: string): boolean {
+  if (!p || p.length < 8 || p.length > 32) return false
+  return /[A-Za-z]/.test(p) && /\d/.test(p)
+}
+
+/**
+ * 密码强度评估：
+ *   - 0：空
+ *   - 1：弱（有内容但不符合长度/字符要求）
+ *   - 2：中（长度达标 + 含字母与数字）
+ *   - 3：强（在中基础上 + 大小写混合 或 含符号）
+ */
+const pwdStrength = computed(() => {
+  const p = pwdForm.value.next
+  if (!p) return { level: 0 as const, label: '', hint: '' }
+  const hasLen = p.length >= 8 && p.length <= 32
+  const hasLetterDigit = /[A-Za-z]/.test(p) && /\d/.test(p)
+  const hasCaseMix = /[a-z]/.test(p) && /[A-Z]/.test(p)
+  const hasSymbol = /[^A-Za-z0-9]/.test(p)
+  if (hasLen && hasLetterDigit && (hasCaseMix || hasSymbol)) {
+    return { level: 3 as const, label: '强', hint: '已包含大小写字母、数字与符号' }
+  }
+  if (hasLen && hasLetterDigit) {
+    return {
+      level: 2 as const,
+      label: '中',
+      hint: '已包含字母与数字，建议混合大小写或符号',
+    }
+  }
+  return { level: 1 as const, label: '弱', hint: '建议使用 8 位以上字母与数字组合' }
+})
 
 const pwdRules: FormRules = {
   old: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
   next: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 8, max: 64, message: '密码长度需为 8-64 字符', trigger: 'blur' },
+    { min: 8, max: 32, message: '密码长度需为 8-32 字符', trigger: 'blur' },
+    {
+      validator(_: unknown, value: string, cb: (msg?: string) => void) {
+        if (!isPasswordStrong(value)) return cb('密码需同时包含字母与数字')
+        cb()
+      },
+      trigger: 'blur',
+    },
   ],
   confirm: [
     { required: true, message: '请再次输入新密码', trigger: 'blur' },
     {
-      validator(_, value: string, cb: (msg?: string) => void) {
+      validator(_: unknown, value: string, cb: (msg?: string) => void) {
         if (value !== pwdForm.value.next) return cb('两次输入的密码不一致')
         cb()
       },
@@ -179,10 +218,27 @@ async function onChangePassword() {
   if (!valid) return
   pwdSubmitting.value = true
   try {
-    // V1 后端未提供改密接口；占位提示
-    await new Promise((r) => setTimeout(r, 400))
-    ElMessage.warning('改密功能即将开放')
-    pwdForm.value = { old: '', next: '', confirm: '' }
+    await userStore.changePassword({
+      oldPassword: pwdForm.value.old,
+      newPassword: pwdForm.value.next,
+      confirmPassword: pwdForm.value.confirm,
+    })
+    // 顶角通知：密码修改成功 + 正在跳转登录页
+    ElNotification({
+      title: '密码修改成功',
+      message: '正在跳转到登录页…',
+      type: 'success',
+      position: 'top-right',
+      duration: 2500,
+    })
+    // store 内部已 clear()；强制跳登录页（沿用 Login.vue 一致的硬跳转风格）
+    await nextTick()
+    window.location.href = '/login'
+  } catch (err) {
+    // http 拦截器已对 5xx / 网络异常弹过 toast；业务错误（401 当前密码错误 / 400 强度不足）由 service 返回 message
+    const e = err as { serverMessage?: string; message?: string }
+    const msg = e?.serverMessage || e?.message
+    if (msg) ElMessage.error(msg)
   } finally {
     pwdSubmitting.value = false
   }
@@ -343,10 +399,10 @@ async function handleLogout() {
       <section v-else-if="activeSection === 'password'" class="settings__pane">
         <header class="settings__pane-header">
           <h2 class="settings__pane-title">修改密码</h2>
-          <p class="settings__pane-sub">定期更换密码可以提升账号安全性</p>
+          <p class="settings__pane-sub">修改成功后，其他设备的登录状态将自动退出</p>
         </header>
 
-        <article class="settings__block">
+        <article class="settings__block settings__block--password-card">
           <el-form
             ref="pwdFormRef"
             :model="pwdForm"
@@ -361,17 +417,45 @@ async function handleLogout() {
                 show-password
                 placeholder="请输入当前密码"
                 autocomplete="current-password"
-              />
+              >
+                <template #prefix>
+                  <el-icon class="settings__input-icon"><LockNavIcon /></el-icon>
+                </template>
+              </el-input>
             </el-form-item>
+
             <el-form-item label="新密码" prop="next">
               <el-input
                 v-model="pwdForm.next"
                 type="password"
                 show-password
-                placeholder="8-64 位，建议字母 + 数字 + 符号"
+                placeholder="请输入新密码（8-32 位）"
                 autocomplete="new-password"
-              />
+              >
+                <template #prefix>
+                  <el-icon class="settings__input-icon"><LockNavIcon /></el-icon>
+                </template>
+              </el-input>
+              <!-- 密码强度计 -->
+              <div
+                v-if="pwdForm.next"
+                class="settings__pwd-strength"
+                :class="`settings__pwd-strength--lv${pwdStrength.level}`"
+              >
+                <div class="settings__pwd-bars">
+                  <span
+                    v-for="i in 3"
+                    :key="i"
+                    class="settings__pwd-bar"
+                    :class="{ 'settings__pwd-bar--on': pwdStrength.level >= i }"
+                  />
+                </div>
+                <span class="settings__pwd-label">密码强度：{{ pwdStrength.label }}</span>
+                <span class="settings__pwd-divider">·</span>
+                <span class="settings__pwd-hint">{{ pwdStrength.hint }}</span>
+              </div>
             </el-form-item>
+
             <el-form-item label="确认新密码" prop="confirm">
               <el-input
                 v-model="pwdForm.confirm"
@@ -379,28 +463,43 @@ async function handleLogout() {
                 show-password
                 placeholder="请再次输入新密码"
                 autocomplete="new-password"
-              />
+              >
+                <template #prefix>
+                  <el-icon class="settings__input-icon"><LockNavIcon /></el-icon>
+                </template>
+              </el-input>
             </el-form-item>
+
             <div class="settings__form-actions">
-              <el-button type="primary" :loading="pwdSubmitting" @click="onChangePassword">
-                保存新密码
+              <el-button
+                type="primary"
+                :icon="ShieldIcon"
+                :loading="pwdSubmitting"
+                @click="onChangePassword"
+              >
+                更新密码
               </el-button>
             </div>
           </el-form>
         </article>
-      </section>
 
-      <!-- 数据导出 -->
-      <section v-else-if="activeSection === 'export'" class="settings__pane">
-        <header class="settings__pane-header">
-          <h2 class="settings__pane-title">数据导出</h2>
-          <p class="settings__pane-sub">导出提示词、分类、调优历史等数据</p>
-        </header>
-
-        <article class="settings__block settings__block--center">
-          <el-icon class="settings__block-icon"><ExportNavIcon /></el-icon>
-          <h3 class="settings__block-title">敬请期待</h3>
-          <p class="settings__block-sub">导出功能将在后续版本开放。</p>
+        <!-- 密码要求清单 -->
+        <article class="settings__block settings__block--requirements">
+          <h3 class="settings__requirements-title">密码要求</h3>
+          <ul class="settings__requirements-list">
+            <li class="settings__requirement">
+              <el-icon class="settings__requirement-icon"><CheckIcon /></el-icon>
+              长度 8-32 位，区分大小写
+            </li>
+            <li class="settings__requirement">
+              <el-icon class="settings__requirement-icon"><CheckIcon /></el-icon>
+              至少包含字母与数字
+            </li>
+            <li class="settings__requirement">
+              <el-icon class="settings__requirement-icon"><CheckIcon /></el-icon>
+              建议混合使用符号，避免与其他网站重复
+            </li>
+          </ul>
         </article>
       </section>
     </main>
@@ -725,6 +824,106 @@ async function handleLogout() {
   display: flex;
   justify-content: flex-end;
   padding-top: 8px;
+}
+
+/* 密码输入框前缀图标 */
+.settings__input-icon {
+  color: #94a3b8;
+  font-size: 16px;
+}
+
+/* 密码强度 */
+.settings__pwd-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.settings__pwd-bars {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.settings__pwd-bar {
+  width: 32px;
+  height: 4px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  transition: background 0.2s;
+}
+
+.settings__pwd-bar--on {
+  background: #10b981;
+}
+
+.settings__pwd-strength--lv2 .settings__pwd-bar:nth-child(1),
+.settings__pwd-strength--lv2 .settings__pwd-bar:nth-child(2) {
+  background: #f59e0b;
+}
+
+.settings__pwd-strength--lv1 .settings__pwd-bar:nth-child(1) {
+  background: #ef4444;
+}
+
+.settings__pwd-label {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.settings__pwd-strength--lv2 .settings__pwd-label {
+  color: #f59e0b;
+}
+
+.settings__pwd-strength--lv1 .settings__pwd-label {
+  color: #ef4444;
+}
+
+.settings__pwd-divider {
+  color: #cbd5e1;
+}
+
+.settings__pwd-hint {
+  color: #64748b;
+}
+
+/* 密码要求清单 */
+.settings__block--requirements {
+  background: #f0f7ff;
+  border: 1px solid #dbeafe;
+  padding: 16px 24px;
+}
+
+.settings__requirements-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.settings__requirements-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings__requirement {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #1e40af;
+}
+
+.settings__requirement-icon {
+  color: #2563eb;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 /* 退出登录 */

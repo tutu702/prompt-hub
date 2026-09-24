@@ -196,7 +196,8 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*AuthResult, er
 }
 
 // Refresh 用 refresh token 换取新的 access token。
-// 本期不轮换 refresh token，也不强制校验 TokenVersion（字段预留）。
+// 本期不轮换 refresh token，但严格校验 TokenVersion：
+// 修改密码后 server 端 token_version 会 +1，旧 refresh token 一律失效。
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	claims, err := s.jwt.Parse(refreshToken)
 	if err != nil {
@@ -212,6 +213,11 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 	}
 	if u == nil || u.Status != 1 {
 		return nil, newAppError(aeTokenInvalid, "账户不存在或已停用")
+	}
+
+	// token_version 不一致 → 视为 token 已吊销（修改密码 / 强制下线场景）
+	if claims.TokenVersion != u.TokenVersion {
+		return nil, newAppError(aeTokenInvalid, "refresh token 已失效，请重新登录")
 	}
 
 	access, _, err := s.jwt.IssueAccess(u.ID, u.TokenVersion)
@@ -311,4 +317,55 @@ func (s *AuthService) UpdateMe(ctx context.Context, userID uint, nickname string
 		return nil, err
 	}
 	return s.users.FindByID(ctx, userID)
+}
+
+// ChangePasswordInput 修改密码入参（service 层独立校验，与 DTO 解耦）。
+type ChangePasswordInput struct {
+	OldPassword     string
+	NewPassword     string
+	ConfirmPassword string
+}
+
+// ChangePassword 修改当前登录用户的密码，并在成功后 bump token_version。
+//
+// 校验顺序：
+//   1) newPassword == confirmPassword；
+//   2) newPassword 强度（8-64，字母+数字）；
+//   3) oldPassword 与现有 hash 匹配；
+//   4) 通过则写入新 hash，并 token_version += 1，使旧 refresh_token 全部失效。
+//
+// 旧 access_token 仍可使用到自然过期；前端在收到 200 后自行清本地凭证并跳登录页。
+func (s *AuthService) ChangePassword(ctx context.Context, userID uint, in ChangePasswordInput) error {
+	if in.NewPassword != in.ConfirmPassword {
+		return newAppError(aeBadRequest, "两次输入的密码不一致")
+	}
+	if !isPasswordStrong(in.NewPassword) {
+		return newAppError(aePasswordWeak, "密码至少 8 位且需包含字母与数字")
+	}
+
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if u == nil || u.Status != 1 {
+		return newAppError(aeInvalidCredential, "账户不存在或已停用")
+	}
+	if !password.Verify(u.PasswordHash, in.OldPassword) {
+		// 与登录错误保持语义一致：401 + 统一文案，避免枚举
+		return newAppError(aeInvalidCredential, "当前密码错误")
+	}
+
+	newHash, err := password.Hash(in.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	// 同时更新 hash 与 token_version；任一失败都整体回滚由调用方处理
+	if err := s.users.Update(ctx, userID, map[string]any{
+		"password_hash": newHash,
+		"token_version": u.TokenVersion + 1,
+	}); err != nil {
+		return err
+	}
+	return nil
 }

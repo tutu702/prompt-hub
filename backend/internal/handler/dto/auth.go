@@ -43,3 +43,16 @@ type AuthResultDTO struct {
 type UpdateMeReq struct {
 	Nickname string `json:"nickname" binding:"required,min=1,max=20"`
 }
+
+// ChangePasswordReq 修改密码请求体（PRD P10 /settings/password）。
+//
+// 服务端校验顺序：
+//   1. 三字段均必填（binding 已保证）；
+//   2. confirmPassword == newPassword；
+//   3. newPassword 强度（8-64，含字母+数字）；
+//   4. oldPassword 与现有 hash 匹配。
+type ChangePasswordReq struct {
+	OldPassword     string `json:"oldPassword" binding:"required,min=1,max=64"`
+	NewPassword     string `json:"newPassword" binding:"required,min=8,max=64"`
+	ConfirmPassword string `json:"confirmPassword" binding:"required,min=8,max=64"`
+}

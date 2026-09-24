@@ -82,23 +82,17 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-/* 卡片网格：4 列自适应，向下渐变 */
+/* 卡片网格：自适应列数，向下渐变；最大 3 列以保证每张卡片不会过宽 */
 .prompt-grid--cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
 }
 
-@media (min-width: 1280px) {
-  .prompt-grid--cards {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-  }
-}
-
-@media (min-width: 960px) and (max-width: 1279px) {
+@media (min-width: 960px) {
   .prompt-grid--cards {
     grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
   }
 }
 
@@ -118,9 +112,9 @@ const emit = defineEmits<{
 /* 骨架屏 */
 .prompt-grid__skeleton {
   background: #ffffff;
-  border-radius: 14px;
-  padding: 18px;
-  min-height: 168px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-height: 132px;
   border: 1px solid #eef2f7;
 }
 

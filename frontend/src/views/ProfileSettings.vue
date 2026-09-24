@@ -130,6 +130,11 @@ function goLLM() {
   router.push('/settings/llm')
 }
 
+/** 跳到修改密码（统一设置页中的 password 子模块） */
+function goPassword() {
+  router.push({ path: '/settings', query: { section: 'password' } })
+}
+
 /**
  * 退出登录：先二次确认，再清 token，最后跳登录页。
  * 复用 DefaultLayout 中已有的退出逻辑体验，保持一致。
@@ -227,13 +232,13 @@ async function handleLogout() {
           </div>
           <span class="profile-link__chevron">›</span>
         </li>
-        <li class="profile-link profile-link--disabled" title="V1 暂未开放">
+        <li class="profile-link" @click="goPassword">
           <el-icon class="profile-link__icon"><LockIcon /></el-icon>
           <div class="profile-link__body">
             <div class="profile-link__title">修改密码</div>
-            <div class="profile-link__desc">V1 暂未开放，后续版本支持</div>
+            <div class="profile-link__desc">定期更换密码可以提升账号安全</div>
           </div>
-          <el-tag size="small" type="info" effect="plain">敬请期待</el-tag>
+          <span class="profile-link__chevron">›</span>
         </li>
         <li class="profile-link profile-link--danger" @click="handleLogout">
           <el-icon class="profile-link__icon"><LogoutIcon /></el-icon>

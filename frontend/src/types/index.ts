@@ -72,6 +72,13 @@ export interface RefreshResult {
   expires_in: number
 }
 
+/** POST /auth/change-password 请求体（PRD P10）。 */
+export interface ChangePasswordPayload {
+  oldPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
 /* ---------- 提示词 / 分类 ---------- */
 
 /** 提示词 */

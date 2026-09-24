@@ -79,6 +79,9 @@ func New(opt Options) *gin.Engine {
 			protected.GET("/me", opt.Auth.GetMe)
 			protected.PATCH("/me", opt.Auth.UpdateMe)
 
+			// 修改密码（成功后 bump token_version，使旧 refresh_token 失效）
+			protected.POST("/auth/change-password", opt.Auth.ChangePassword)
+
 			// 提示词
 			protected.GET("/prompts", opt.Prompt.List)
 			protected.POST("/prompts", opt.Prompt.Create)

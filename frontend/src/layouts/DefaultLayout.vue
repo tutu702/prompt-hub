@@ -249,6 +249,7 @@ function onBellClick() {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: 48px;
 }
 
 .layout__nav-item {

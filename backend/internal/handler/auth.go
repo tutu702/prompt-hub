@@ -192,3 +192,28 @@ func (h *AuthHandler) UpdateMe(c *gin.Context) {
 	}
 	response.OK(c, toAuthUserDTO(u))
 }
+
+// ChangePassword POST /api/v1/auth/change-password（需 JWT 中间件前置）。
+//
+// 成功 → 更新密码 hash 并 bump token_version，使旧 refresh_token 失效；
+// 旧 access_token 仍可用至自然过期，由前端在收到 200 后清凭证并跳登录页。
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	claims, ok := userClaims(c)
+	if !ok {
+		return
+	}
+	var req dto.ChangePasswordReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithStatus(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+	if err := h.svc.ChangePassword(c.Request.Context(), claims.UserID, service.ChangePasswordInput{
+		OldPassword:     req.OldPassword,
+		NewPassword:     req.NewPassword,
+		ConfirmPassword: req.ConfirmPassword,
+	}); err != nil {
+		h.writeAuthErr(c, err)
+		return
+	}
+	response.OK(c, gin.H{})
+}

@@ -8,6 +8,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { authApi, meApi } from '@/api'
 import type {
+  ChangePasswordPayload,
   LoginPayload,
   RegisterPayload,
   UpdateProfilePayload,
@@ -154,6 +155,20 @@ export const useUserStore = defineStore('user', () => {
     return u
   }
 
+  /**
+   * 修改密码（PRD P10）。
+   *
+   * 服务端在成功后 bump token_version，旧 refresh_token 全部失效；
+   * 本端在拿到 200 后立即清空本地凭证，避免后续被 http 拦截器带着旧
+   * refresh_token 去 refresh（必然失败、且会污染 UI 状态）。
+   *
+   * 调用方需自行跳转到 /login。
+   */
+  async function changePassword(payload: ChangePasswordPayload): Promise<void> {
+    await meApi.changePassword(payload)
+    clear()
+  }
+
   function applyAuthResult(res: { user: User; access_token: string; refresh_token: string; expires_in: number }) {
     setTokens(res.access_token, res.refresh_token, res.expires_in)
     userInfo.value = res.user
@@ -176,6 +191,7 @@ export const useUserStore = defineStore('user', () => {
     refresh,
     fetchProfile,
     updateProfile,
+    changePassword,
     clear,
     setTokens,
   }

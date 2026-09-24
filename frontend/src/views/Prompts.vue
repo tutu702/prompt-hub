@@ -2,7 +2,7 @@
 /**
  * 提示词库 P03（PRD §三 P03）。
  *
- * 顶部问候 + 统计卡 + 工具栏 + 卡片网格 + 分页 + 空态。
+ * 顶部问候 + 工具栏 + 卡片网格 + 分页 + 空态。
  * 支持：搜索（防抖 300ms）/ 筛选 / 排序 / 收藏切换 / 复制 / 删除 / 批量删除。
  * 不支持（占位 toast）：编辑 / AI 调优 / 详情 / 批量导出。
  */
@@ -12,8 +12,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus as PlusIcon,
-  MagicStick as MagicIcon,
-  TrendCharts as UsageIcon,
   Collection as CollectionIcon,
 } from '@element-plus/icons-vue'
 
@@ -208,7 +206,7 @@ function onPageChange(p: number) {
 
 <template>
   <div class="prompts">
-    <!-- 问候 + 统计 -->
+    <!-- 问候 -->
     <section class="prompts__hello">
       <div class="prompts__hello-text">
         <h1 class="prompts__hello-title">
@@ -220,27 +218,6 @@ function onPageChange(p: number) {
           条提示词 ·
           共 <strong>{{ total }}</strong> 条资产
         </p>
-      </div>
-
-      <div class="prompts__hello-stats">
-        <div class="prompts__stat">
-          <span class="prompts__stat-icon prompts__stat-icon--fire">
-            <el-icon><UsageIcon /></el-icon>
-          </span>
-          <span class="prompts__stat-content">
-            <span class="prompts__stat-label">本周使用</span>
-            <span class="prompts__stat-value">42 <em>次</em></span>
-          </span>
-        </div>
-        <div class="prompts__stat">
-          <span class="prompts__stat-icon prompts__stat-icon--blue">
-            <el-icon><MagicIcon /></el-icon>
-          </span>
-          <span class="prompts__stat-content">
-            <span class="prompts__stat-label">调优版本</span>
-            <span class="prompts__stat-value">16 <em>个</em></span>
-          </span>
-        </div>
       </div>
     </section>
 
@@ -306,6 +283,9 @@ function onPageChange(p: number) {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-width: 1080px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* ---------- 问候区 ---------- */
@@ -353,70 +333,6 @@ function onPageChange(p: number) {
   color: #334155;
   font-weight: 600;
   margin: 0 2px;
-}
-
-/* 统计卡 */
-.prompts__hello-stats {
-  display: flex;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.prompts__stat {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: #ffffff;
-  border: 1px solid #eef2f7;
-  border-radius: 12px;
-  min-width: 160px;
-}
-
-.prompts__stat-icon {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  font-size: 18px;
-}
-
-.prompts__stat-icon--fire {
-  background: #fff7ed;
-  color: #f97316;
-}
-
-.prompts__stat-icon--blue {
-  background: #eef4ff;
-  color: #2563eb;
-}
-
-.prompts__stat-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.prompts__stat-label {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.prompts__stat-value {
-  font-size: 17px;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: 0.3px;
-}
-
-.prompts__stat-value em {
-  font-style: normal;
-  font-size: 12px;
-  font-weight: 500;
-  color: #94a3b8;
-  margin-left: 2px;
 }
 
 /* ---------- 工具栏包装 ---------- */
@@ -472,13 +388,7 @@ function onPageChange(p: number) {
   justify-content: center;
 }
 
-@media (max-width: 960px) {
-  .prompts__hello-stats { width: 100%; }
-  .prompts__stat { flex: 1; min-width: 0; }
-}
-
 @media (max-width: 600px) {
   .prompts__hello-title { font-size: 22px; }
-  .prompts__hello-stats { flex-direction: column; }
 }
 </style>
