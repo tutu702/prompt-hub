@@ -21,4 +21,7 @@ type UserRepo interface {
 	EmailExists(ctx context.Context, email string) (bool, error)
 	// UpdateLastLogin 更新最近登录时间和 IP。
 	UpdateLastLogin(ctx context.Context, id uint, ip string) error
+	// Update 按主键更新指定字段（fields 为列名到值的映射）。
+	// 用于个人资料修改等场景；调用方负责控制可更新列。
+	Update(ctx context.Context, id uint, fields map[string]any) error
 }

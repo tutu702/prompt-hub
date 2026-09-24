@@ -462,3 +462,83 @@ func validateBaseURL(raw string) error {
 	}
 	return nil
 }
+// FetchModelsInput 拉取模型列表入参（前端传明文 key，不入 DB）。
+type FetchModelsInput struct {
+	BaseURL string
+	APIKey  string
+}
+
+// FetchModelsResult 拉取模型列表结果。
+type FetchModelsResult struct {
+	Models []string `json:"models"`
+	Error  string   `json:"error,omitempty"`
+}
+
+// FetchModels 代理请求 `{base_url}/models` 拿模型 id 列表（OpenAI 兼容格式）。
+// 8s timeout；只 GET 不写库；失败时通过返回 error 让前端弹 toast。
+func (s *LLMConfigService) FetchModels(ctx context.Context, in FetchModelsInput) (*FetchModelsResult, error) {
+	if err := validateBaseURL(in.BaseURL); err != nil {
+		return nil, newAppError(errcode.CodeBadRequest, err.Error())
+	}
+	if in.APIKey == "" {
+		return nil, newAppError(errcode.CodeBadRequest, "API Key 必填")
+	}
+	endpoint := strings.TrimRight(in.BaseURL, "/") + "/models"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, newAppError(errcode.CodeInternal, "构造请求失败")
+	}
+	req.Header.Set("Authorization", "Bearer "+in.APIKey)
+	req.Header.Set("Accept", "application/json")
+
+	// 单次 8s timeout
+	ctx2, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx2)
+
+	start := time.Now()
+	resp, err := s.http.Do(req)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return nil, newAppError(errcode.CodeBadGateway,
+			fmt.Sprintf("拉取模型失败（%dms）：%s", latency, err.Error()))
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, newAppError(errcode.CodeBadGateway,
+			fmt.Sprintf("上游返回 %d（%dms）", resp.StatusCode, latency))
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if err != nil {
+		return nil, newAppError(errcode.CodeBadGateway, "读取响应失败")
+	}
+
+	// 解析 OpenAI 兼容格式：{"data": [{"id": "..."}, ...]}，也兼容 array 形式
+	var wrapResp struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapResp); err != nil || len(wrapResp.Data) == 0 {
+		var arr []struct {
+			ID string `json:"id"`
+		}
+		if err2 := json.Unmarshal(body, &arr); err2 != nil || len(arr) == 0 {
+			return nil, newAppError(errcode.CodeBadGateway, "解析响应失败")
+		}
+		out := make([]string, 0, len(arr))
+		for _, m := range arr {
+			if m.ID != "" {
+				out = append(out, m.ID)
+			}
+		}
+		return &FetchModelsResult{Models: out}, nil
+	}
+	out := make([]string, 0, len(wrapResp.Data))
+	for _, m := range wrapResp.Data {
+		if m.ID != "" {
+			out = append(out, m.ID)
+		}
+	}
+	return &FetchModelsResult{Models: out}, nil
+}

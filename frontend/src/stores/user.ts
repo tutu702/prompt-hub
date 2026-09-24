@@ -6,8 +6,13 @@
  */
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { authApi } from '@/api'
-import type { LoginPayload, RegisterPayload, User } from '@/types'
+import { authApi, meApi } from '@/api'
+import type {
+  LoginPayload,
+  RegisterPayload,
+  UpdateProfilePayload,
+  User,
+} from '@/types'
 
 const STORAGE = {
   access: 'ph_access',
@@ -128,6 +133,27 @@ export const useUserStore = defineStore('user', () => {
     clear()
   }
 
+  /**
+   * 从 /me 拉取最新个人资料并刷新本地 userInfo。
+   * 用于：进入个人设置页时确保数据最新；登录态有效但本地 userInfo 缺失时补全。
+   */
+  async function fetchProfile(): Promise<User> {
+    const u = await meApi.getMe()
+    userInfo.value = u
+    localStorage.setItem(STORAGE.user, JSON.stringify(u))
+    return u
+  }
+
+  /**
+   * 更新个人资料（当前仅支持昵称），成功后刷新本地 userInfo 并持久化。
+   */
+  async function updateProfile(payload: UpdateProfilePayload): Promise<User> {
+    const u = await meApi.updateMe(payload)
+    userInfo.value = u
+    localStorage.setItem(STORAGE.user, JSON.stringify(u))
+    return u
+  }
+
   function applyAuthResult(res: { user: User; access_token: string; refresh_token: string; expires_in: number }) {
     setTokens(res.access_token, res.refresh_token, res.expires_in)
     userInfo.value = res.user
@@ -148,6 +174,8 @@ export const useUserStore = defineStore('user', () => {
     register,
     logout,
     refresh,
+    fetchProfile,
+    updateProfile,
     clear,
     setTokens,
   }

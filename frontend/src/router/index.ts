@@ -47,6 +47,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '分类管理', layout: 'default', requiresAuth: true },
   },
   {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/Settings.vue'),
+    meta: { title: '设置', layout: 'default', requiresAuth: true },
+  },
+  {
+    path: '/settings/llm',
+    name: 'LLMSettings',
+    component: () => import('@/views/LLMSettings.vue'),
+    meta: { title: '大模型配置', layout: 'default', requiresAuth: true },
+  },
+  {
+    path: '/settings/profile',
+    name: 'ProfileSettings',
+    component: () => import('@/views/ProfileSettings.vue'),
+    meta: { title: '个人设置', layout: 'default', requiresAuth: true },
+  },
+  {
     path: '/prompts/new',
     name: 'PromptCreate',
     component: () => import('@/views/PromptCreate.vue'),

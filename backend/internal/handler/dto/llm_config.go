@@ -46,3 +46,14 @@ type TestConnectionResp struct {
 	ErrorCode    string `json:"error_code,omitempty"`
 	ErrorMessage string `json:"error_message,omitempty"`
 }
+// FetchModelsReq POST /llm-configs/fetch-models 请求体
+type FetchModelsReq struct {
+	BaseURL string `json:"base_url" binding:"required,url"`
+	APIKey  string `json:"api_key" binding:"required,min=1"`
+}
+
+// FetchModelsResp 拉取模型列表响应
+type FetchModelsResp struct {
+	Models []string `json:"models"`
+	Error  string   `json:"error,omitempty"`
+}

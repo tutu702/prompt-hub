@@ -75,6 +75,10 @@ func New(opt Options) *gin.Engine {
 		{
 			protected.POST("/auth/logout", opt.Auth.Logout)
 
+			// 个人资料
+			protected.GET("/me", opt.Auth.GetMe)
+			protected.PATCH("/me", opt.Auth.UpdateMe)
+
 			// 提示词
 			protected.GET("/prompts", opt.Prompt.List)
 			protected.POST("/prompts", opt.Prompt.Create)
@@ -104,6 +108,7 @@ func New(opt Options) *gin.Engine {
 			protected.DELETE("/llm-configs/:id", opt.LLMConfig.Delete)
 			protected.POST("/llm-configs/:id/default", opt.LLMConfig.SetDefault)
 			protected.POST("/llm-configs/:id/test-connection", opt.LLMConfig.TestConnection)
+			protected.POST("/llm-configs/fetch-models", opt.LLMConfig.FetchModels)
 		}
 	}
 

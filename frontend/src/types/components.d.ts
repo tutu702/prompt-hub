@@ -44,6 +44,7 @@ declare module 'vue' {
     ElTabs: typeof import('element-plus/es')['ElTabs']
     ElTag: typeof import('element-plus/es')['ElTag']
     HelloWorld: typeof import('./../components/HelloWorld.vue')['default']
+    LLMConfigFormDialog: typeof import('./../components/llm/LLMConfigFormDialog.vue')['default']
     PromptCard: typeof import('./../components/prompts/PromptCard.vue')['default']
     PromptDetailReadonly: typeof import('./../components/prompts/PromptDetailReadonly.vue')['default']
     PromptForm: typeof import('./../components/prompts/PromptForm.vue')['default']

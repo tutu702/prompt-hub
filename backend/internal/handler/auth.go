@@ -158,3 +158,37 @@ func toAuthResultDTO(r *service.AuthResult) dto.AuthResultDTO {
 		ExpiresIn:    r.ExpiresIn,
 	}
 }
+// GetMe GET /api/v1/me
+// 返回当前用户的完整资料（含 created_at）。邮箱 / 注册时间等字段只读不可改。
+func (h *AuthHandler) GetMe(c *gin.Context) {
+	claims, ok := userClaims(c)
+	if !ok {
+		return
+	}
+	u, err := h.svc.GetMe(c.Request.Context(), claims.UserID)
+	if err != nil {
+		writeErr(c, h.log, err)
+		return
+	}
+	response.OK(c, toAuthUserDTO(u))
+}
+
+// UpdateMe PATCH /api/v1/me
+// 修改昵称；邮箱 / 创建时间不可改（接口层不暴露对应字段）。
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	claims, ok := userClaims(c)
+	if !ok {
+		return
+	}
+	var req dto.UpdateMeReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithStatus(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+	u, err := h.svc.UpdateMe(c.Request.Context(), claims.UserID, req.Nickname)
+	if err != nil {
+		writeErr(c, h.log, err)
+		return
+	}
+	response.OK(c, toAuthUserDTO(u))
+}

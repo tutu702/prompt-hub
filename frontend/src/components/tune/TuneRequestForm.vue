@@ -11,13 +11,14 @@
  *   - 模型下拉：本期 disabled 占位（P08 接真实 LLM 时启用）
  *   - 行内按钮：开始调优 / 取消（流式中切换）
  */
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import {
   MagicStick as MagicIcon,
   CircleClose as CancelIcon,
   ChatLineRound as SuggestionIcon,
-  ArrowDown as DropdownIcon,
 } from '@element-plus/icons-vue'
+import { useLLMStore } from '@/stores/llm'
 
 defineProps<{
   originalContent: string
@@ -32,7 +33,19 @@ const emit = defineEmits<{
 const requestText = ref<string>('')
 const useContext = ref<boolean>(false)
 
+const llmStore = useLLMStore()
 const modelConfigId = ref<number | null>(null)
+
+onMounted(async () => {
+  await llmStore.loadIfNeed()
+  if (llmStore.defaultConfig) {
+    modelConfigId.value = llmStore.defaultConfig.id
+  } else if (llmStore.enabledList.length > 0) {
+    modelConfigId.value = llmStore.enabledList[0].id
+  } else {
+    ElMessage.warning('请先去【设置 → 大模型配置】启用至少一个模型')
+  }
+})
 
 /** 调优诉求内置的几个一键建议。 */
 const suggestions = [
@@ -94,14 +107,21 @@ function onCancel() {
       <div class="tune-form__actions">
         <el-select
           v-model="modelConfigId"
-          disabled
+          :loading="llmStore.loading"
+          :disabled="llmStore.enabledList.length === 0"
+          placeholder="请选择模型"
           class="tune-form__model-select"
           size="default"
         >
           <template #prefix>
             <el-icon class="tune-form__model-icon"><MagicIcon /></el-icon>
           </template>
-          <el-option label="Max 的 GPT-4 · OpenAI" :value="1" />
+          <el-option
+            v-for="c in llmStore.enabledList"
+            :key="c.id"
+            :label="`${c.name}（${c.model}）`"
+            :value="c.id"
+          />
         </el-select>
 
         <el-button

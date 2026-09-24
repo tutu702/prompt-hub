@@ -76,3 +76,11 @@ func (r *userRepoGorm) UpdateLastLogin(ctx context.Context, id uint, ip string) 
 			"last_login_ip": ip,
 		}).Error
 }
+
+// Update 按主键更新指定字段。
+func (r *userRepoGorm) Update(ctx context.Context, id uint, fields map[string]any) error {
+	return r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", id).
+		Updates(fields).Error
+}

@@ -45,7 +45,7 @@ const navItems = [
   { label: '首页', to: '/prompts' },
   { label: '分类', to: '/categories' },
   { label: 'AI 调优', to: '/prompts' },
-  { label: '设置', to: '/prompts' },
+  { label: '设置', to: '/settings' },
 ] as const
 
 /** 搜索输入（与 prompt store 双向同步，但带防抖） */
@@ -108,7 +108,9 @@ function handleMenuCommand(cmd: string) {
       })
       .catch(() => {})
   } else if (cmd === 'settings') {
-    ElMessage.info('设置页即将开放')
+    router.push('/settings')
+  } else if (cmd === 'profile') {
+    router.push('/settings?section=profile')
   }
 }
 
@@ -182,6 +184,10 @@ function onBellClick() {
             <el-dropdown-item command="settings" divided>
               <el-icon><SettingIcon /></el-icon>
               <span style="margin-left: 6px">设置</span>
+            </el-dropdown-item>
+            <el-dropdown-item command="profile">
+              <el-icon><UserIcon /></el-icon>
+              <span style="margin-left: 6px">个人设置</span>
             </el-dropdown-item>
             <el-dropdown-item command="logout">
               <el-icon><LogoutIcon /></el-icon>

@@ -7,19 +7,31 @@
  *
  * 面板不持有任何生成结果状态，避免误导；fill-out 由父页面在 apply 时切换到手动 Tab。
  */
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
+import { useLLMStore } from '@/stores/llm'
 
 const emit = defineEmits<{
   (e: 'dirty', value: boolean): void
   (e: 'apply', payload: { title?: string; content: string; description?: string; tags?: string[] }): void
 }>()
 
+const llmStore = useLLMStore()
+
 const form = reactive({
   purpose: '',
-  model: '',
+  model: '' as number | string,
   style: '',
   language: '',
+})
+
+onMounted(async () => {
+  await llmStore.loadIfNeed()
+  if (llmStore.defaultConfig) {
+    form.model = llmStore.defaultConfig.id
+  } else if (llmStore.enabledList.length > 0) {
+    form.model = llmStore.enabledList[0].id
+  }
 })
 
 const styleOptions = [
@@ -87,11 +99,17 @@ function onGenerate() {
       <el-form-item label="选择模型">
         <el-select
           v-model="form.model"
-          placeholder="暂无可用模型（需先在大模型配置中启用至少一个）"
-          disabled
+          :loading="llmStore.loading"
+          :disabled="llmStore.enabledList.length === 0"
+          placeholder="请选择模型"
           style="width: 100%"
         >
-          <el-option label="（占位）" value="" />
+          <el-option
+            v-for="c in llmStore.enabledList"
+            :key="c.id"
+            :label="`${c.name}（${c.model}）`"
+            :value="c.id"
+          />
         </el-select>
       </el-form-item>
 

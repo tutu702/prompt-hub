@@ -35,6 +35,11 @@ export interface User {
   created_at?: string
 }
 
+/** PATCH /me 请求体（仅昵称可改） */
+export interface UpdateProfilePayload {
+  nickname: string
+}
+
 /** 登录请求体 */
 export interface LoginPayload {
   email: string
@@ -156,6 +161,58 @@ export interface BatchDeletePayload {
 /** 切换收藏 */
 export interface ToggleFavoritePayload {
   is_favorite: boolean
+}
+
+/* ---------- AI 大模型配置（P08） ---------- */
+
+export type LLMProvider =
+  | 'openai' | 'anthropic' | 'deepseek' | 'qwen'
+  | 'zhipu' | 'moonshot' | 'custom'
+
+/** 一条大模型配置 */
+export interface LLMConfig {
+  id: number
+  user_id: number
+  name: string
+  provider: LLMProvider
+  provider_label: string
+  model: string
+  base_url: string
+  api_key_masked: string   // 永远脱敏（prefix + "***" + suffix）
+  is_enabled: boolean
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** 创建大模型配置 */
+export interface CreateLLMConfigPayload {
+  name: string
+  provider: LLMProvider
+  model: string
+  base_url: string
+  api_key: string
+  is_enabled?: boolean
+  is_default?: boolean
+}
+
+/** 更新大模型配置（全字段可选） */
+export interface UpdateLLMConfigPayload {
+  name?: string
+  provider?: LLMProvider
+  model?: string
+  base_url?: string
+  api_key?: string       // 留空=不改
+  is_enabled?: boolean
+  is_default?: boolean
+}
+
+/** 测试连接结果 */
+export interface TestConnectionResult {
+  ok: boolean
+  latency_ms: number
+  error_code?: 'AUTH_FAILED' | 'TIMEOUT' | 'MODEL_NOT_FOUND' | 'QUOTA_EXHAUSTED' | 'NETWORK_ERROR'
+  error_message?: string
 }
 
 /* ---------- 调优历史 ---------- */

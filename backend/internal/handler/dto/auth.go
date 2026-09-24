@@ -39,3 +39,7 @@ type AuthResultDTO struct {
 	RefreshToken string      `json:"refresh_token"`
 	ExpiresIn    int         `json:"expires_in"`
 }
+// UpdateMeReq PATCH /me 请求体（只允许改昵称）。
+type UpdateMeReq struct {
+	Nickname string `json:"nickname" binding:"required,min=1,max=20"`
+}

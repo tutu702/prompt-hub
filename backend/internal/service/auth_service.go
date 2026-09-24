@@ -23,6 +23,7 @@ import (
 	"github.com/prompthub/prompthub/internal/pkg/jwt"
 	"github.com/prompthub/prompthub/internal/pkg/password"
 	"github.com/prompthub/prompthub/internal/repository"
+	"github.com/prompthub/prompthub/pkg/errcode"
 )
 
 // authErrcode 表示与 errcode 包对齐的业务异常（仅本服务用）。
@@ -287,3 +288,27 @@ func IsGormNotFound(err error) bool { return errors.Is(err, gorm.ErrRecordNotFou
 
 // 静默导入 url 包，确保后续如需校验 email URL/重定向字段有可用工具。
 var _ = url.QueryEscape
+// GetMe 取当前用户的完整资料（含 created_at）。
+// 邮箱、注册时间等字段只读，不可修改。
+func (s *AuthService) GetMe(ctx context.Context, userID uint) (*model.User, error) {
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if u == nil {
+		return nil, newAppError(errcode.CodeNotFound, "用户不存在")
+	}
+	return u, nil
+}
+
+// UpdateMe 修改当前用户的昵称（仅昵称；邮箱/注册时间不可改）。
+func (s *AuthService) UpdateMe(ctx context.Context, userID uint, nickname string) (*model.User, error) {
+	nickname = strings.TrimSpace(nickname)
+	if l := len([]rune(nickname)); l < 1 || l > 20 {
+		return nil, newAppError(errcode.CodeBadRequest, "昵称长度需为 1-20 字符")
+	}
+	if err := s.users.Update(ctx, userID, map[string]any{"nickname": nickname}); err != nil {
+		return nil, err
+	}
+	return s.users.FindByID(ctx, userID)
+}

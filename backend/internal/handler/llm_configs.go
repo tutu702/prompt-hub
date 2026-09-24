@@ -244,3 +244,25 @@ func init() {
 	// 占位：保证 service 包内 errcode 别名被引用
 	_ = errcode.CodeInternal
 }
+// FetchModels POST /llm-configs/fetch-models
+// 拉取指定 base_url + api_key 下供应商支持的模型列表（前端新增/编辑时实时下拉用）。
+// 不依赖已保存的配置；前端传明文 key 即可（不走 DB）。
+func (h *LLMConfigHandler) FetchModels(c *gin.Context) {
+	var req dto.FetchModelsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithStatus(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+	res, err := h.svc.FetchModels(c.Request.Context(), service.FetchModelsInput{
+		BaseURL: req.BaseURL,
+		APIKey:  req.APIKey,
+	})
+	if err != nil {
+		writeErr(c, h.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": dto.FetchModelsResp{
+		Models: res.Models,
+		Error:  res.Error,
+	}})
+}
