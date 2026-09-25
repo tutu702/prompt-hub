@@ -18,7 +18,7 @@ export const usePromptStore = defineStore('prompt', () => {
   const list = ref<Prompt[]>([])
   const total = ref<number>(0)
   const page = ref<number>(1)
-  const pageSize = ref<number>(20)
+  const pageSize = ref<number>(12)
   const loading = ref<boolean>(false)
 
   // 过滤

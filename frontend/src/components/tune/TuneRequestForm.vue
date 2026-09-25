@@ -11,7 +11,7 @@
  *   - 模型下拉：本期 disabled 占位（P08 接真实 LLM 时启用）
  *   - 行内按钮：开始调优 / 取消（流式中切换）
  */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   MagicStick as MagicIcon,
@@ -26,7 +26,10 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'submit', payload: { requestText: string; useContext: boolean }): void
+  (
+    e: 'submit',
+    payload: { requestText: string; useContext: boolean; modelConfigId?: number },
+  ): void
   (e: 'cancel'): void
 }>()
 
@@ -35,6 +38,11 @@ const useContext = ref<boolean>(false)
 
 const llmStore = useLLMStore()
 const modelConfigId = ref<number | null>(null)
+
+/** 当前是否选好了一个可用模型（用于控制提交按钮 + 顶部告警）。 */
+const hasUsableModel = computed(
+  () => modelConfigId.value !== null && llmStore.enabledList.some((c) => c.id === modelConfigId.value),
+)
 
 onMounted(async () => {
   await llmStore.loadIfNeed()
@@ -60,8 +68,12 @@ function applySuggestion(text: string) {
 
 function onSubmit() {
   const req = requestText.value.trim()
-  if (!req) return
-  emit('submit', { requestText: req, useContext: useContext.value })
+  if (!req || !modelConfigId.value) return
+  emit('submit', {
+    requestText: req,
+    useContext: useContext.value,
+    modelConfigId: modelConfigId.value,
+  })
 }
 
 function onCancel() {
@@ -71,6 +83,23 @@ function onCancel() {
 
 <template>
   <section class="tune-form">
+    <!-- 未配置模型的引导：与 AIGeneratePanel 风格一致，给出明确跳转 -->
+    <el-alert
+      v-if="llmStore.loaded && !hasUsableModel"
+      title="尚未配置任何启用的大模型"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="tune-form__alert"
+    >
+      <template #default>
+        请先在【系统设置 → 大模型配置】中添加并启用至少一个模型，否则 AI 调优无法调用大模型。
+        <el-link type="primary" :underline="false" @click="$router.push('/settings/llm')">
+          前往配置 →
+        </el-link>
+      </template>
+    </el-alert>
+
     <div class="tune-form__main">
       <!-- 左侧：诉求 textarea + 一键建议 -->
       <div class="tune-form__request">
@@ -130,7 +159,7 @@ function onCancel() {
           size="large"
           class="tune-form__submit"
           :icon="MagicIcon"
-          :disabled="!requestText.trim()"
+          :disabled="!requestText.trim() || !hasUsableModel"
           @click="onSubmit"
         >
           开始调优
@@ -233,6 +262,17 @@ function onCancel() {
 .tune-form__model-select :deep(.el-input__wrapper) {
   background: #f8fafc;
   border-radius: 8px;
+}
+
+.tune-form__alert {
+  margin-bottom: 4px;
+}
+
+.tune-form__alert :deep(.el-alert__content) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .tune-form__model-icon {

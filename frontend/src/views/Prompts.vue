@@ -283,9 +283,6 @@ function onPageChange(p: number) {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 1080px;
-  margin: 0 auto;
-  width: 100%;
 }
 
 /* ---------- 问候区 ---------- */
@@ -335,12 +332,12 @@ function onPageChange(p: number) {
   margin: 0 2px;
 }
 
-/* ---------- 工具栏包装 ---------- */
-.prompts__toolbar {}
-
 /* ---------- 主列表 ---------- */
 .prompts__main {
   min-height: 240px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* ---------- 分页 ---------- */

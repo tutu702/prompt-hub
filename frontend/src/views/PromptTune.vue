@@ -7,7 +7,7 @@
  *   - 中部两栏：左 PromptOriginalPanel（只读正文） + 右 TuneResultPanel（调优结果）
  *   - 底部一行：TuneRequestForm（诉求输入 + 一键建议 + 模型 + 开始调优）
  *
- * 行为：前端 mockStream 模拟字符流式；记录 elapsedMs 在完成后展示；
+ * 行为：通过 POST /api/v1/llm/tune（SSE）拉取真实调优；记录 elapsedMs 在完成后展示；
  * 完成后可保存为新版本 / 应用到当前 / 重新生成 / 复制结果。
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -22,7 +22,8 @@ import {
 import PromptOriginalPanel from '@/components/tune/PromptOriginalPanel.vue'
 import TuneRequestForm from '@/components/tune/TuneRequestForm.vue'
 import TuneResultPanel from '@/components/tune/TuneResultPanel.vue'
-import { mockStream, type MockStreamHandle } from '@/components/tune/mockStream'
+import { tuneApi } from '@/api'
+import type { SSEConsumer } from '@/utils/sse'
 import { promptApi } from '@/api'
 import { useCategoryStore } from '@/stores/category'
 import { usePromptStore } from '@/stores/prompt'
@@ -41,8 +42,7 @@ const prompt = ref<Prompt | null>(null)
 const loading = ref(false)
 const notFound = ref(false)
 
-let streamHandle: MockStreamHandle | null = null
-let streamDoneTimer: ReturnType<typeof setTimeout> | null = null
+let streamConsumer: SSEConsumer | null = null
 let streamStartTs = 0
 const elapsedMs = ref<number | null>(null)
 
@@ -60,8 +60,8 @@ const lastTunedLabel = computed(() => {
   }
 })
 
-/** 调优面板显示的模型标签（本期固定 GPT-4o）。 */
-const modelLabel = 'GPT-4o'
+/** 调优面板显示的模型标签：调优成功后从 history.model_config_id 反查；未发起时显示「—」。 */
+const modelLabel = ref<string>('—')
 
 onMounted(async () => {
   await categoryStore.loadIfNeed()
@@ -77,8 +77,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  streamHandle?.cancel()
-  if (streamDoneTimer) clearTimeout(streamDoneTimer)
+  streamConsumer?.abort()
 })
 
 async function fetchDetail() {
@@ -95,66 +94,64 @@ async function fetchDetail() {
   }
 }
 
-/**
- * 构造 mock 调优后文本：保留原文逐行，每段尾追加调优标签；带 useContext 时末尾追加上下文提示。
- */
-function buildMockTunedText(
-  req: string,
-  original: string,
-  withCtx: boolean,
-): string {
-  const trimmedReq = req.trim() || '优化'
-  const ctxHint = withCtx ? '\n\n[上下文已附加：分类与描述]' : ''
-  const lines = original.split('\n')
-  const tuned = lines
-    .map((l) => (l.trim() ? `${l}（已针对「${trimmedReq}」优化）` : l))
-    .join('\n')
-  return `${tuned}${ctxHint}\n\n—— 调优已完成，请审阅后保存或应用。`.trim()
-}
-
 /* ---------- 调优流程 ---------- */
 
-function onTuneStart(payload: { requestText: string; useContext: boolean }) {
+function onTuneStart(payload: {
+  requestText: string
+  useContext: boolean
+  modelConfigId?: number
+}) {
   if (!prompt.value) return
+
   // 1. 清空旧结果 + 取消旧流
   tuneStore.resultText = ''
   tuneStore.error = ''
   elapsedMs.value = null
-  if (streamDoneTimer) clearTimeout(streamDoneTimer)
-  streamHandle?.cancel()
+  streamConsumer?.abort()
 
-  // 2. 启动流式
-  tuneStore.streaming = true
-  streamStartTs = performance.now()
-  const mockText = buildMockTunedText(
-    payload.requestText,
-    prompt.value.content,
-    payload.useContext,
-  )
-
-  // 把 request/useContext 暂存到 store（供 onRegenerate 复用）
+  // 2. 把诉求暂存（供保存/重新生成复用）
   tuneStore.requestText = payload.requestText
   tuneStore.useContext = payload.useContext
+  tuneStore.streaming = true
+  streamStartTs = performance.now()
 
-  streamHandle = mockStream(mockText, (chunk) => {
-    tuneStore.resultText += chunk
-  })
-  // 估算完成时间（25-40ms / 段）
-  const segments = mockText.match(/[\s\S]{1,3}/g) || []
-  streamDoneTimer = setTimeout(
-    () => {
-      if (tuneStore.streaming) {
+  // 3. 打开 SSE 连接 —— 始终走真实 LLM；后端在缺模型 / 未启用时会返回明确错误。
+  // （之前 `mock: !payload.modelConfigId` 会把"没选模型"静默降级为 mock，
+  //  导致用户看到的是 mock 拼接出来的"（已针对「...」优化）"假结果，误以为没调 LLM。）
+  streamConsumer = tuneApi.tuneStream(
+    {
+      prompt_id: prompt.value.id,
+      request_text: payload.requestText,
+      use_context: payload.useContext,
+      model_config_id: payload.modelConfigId,
+      mock: false,
+    },
+    {
+      onChunk: (delta) => {
+        tuneStore.resultText += delta
+      },
+      onDone: (history) => {
         tuneStore.streaming = false
         elapsedMs.value = performance.now() - streamStartTs
-      }
+        modelLabel.value = history.model_config_id ? `配置 #${history.model_config_id}` : '—'
+        // 把刚写入的历史塞进 store 缓存（无需再 GET 一次）
+        const arr = tuneStore.histories[prompt.value!.id] || []
+        if (!arr.find((h) => h.id === history.id)) {
+          tuneStore.histories[prompt.value!.id] = [history, ...arr]
+        }
+      },
+      onError: (msg) => {
+        tuneStore.streaming = false
+        tuneStore.error = msg
+        ElMessage.error(msg)
+      },
     },
-    segments.length * 35 + 300,
   )
 }
 
 function onTuneCancel() {
-  streamHandle?.cancel()
-  if (streamDoneTimer) clearTimeout(streamDoneTimer)
+  streamConsumer?.abort()
+  streamConsumer = null
   tuneStore.streaming = false
   ElMessage.info('已取消调优')
 }

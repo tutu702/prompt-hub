@@ -82,23 +82,29 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-/* 卡片网格：自适应列数，向下渐变；最大 3 列以保证每张卡片不会过宽 */
+/* 卡片网格：4 列 × 3 行的固定布局（外层容器 12 项 / 屏） */
 .prompt-grid--cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, 260px);
+  gap: 16px;
+  justify-content: center;
 }
 
-@media (min-width: 960px) {
+@media (max-width: 1140px) {
   .prompt-grid--cards {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
+    grid-template-columns: repeat(3, 260px);
   }
 }
 
-@media (min-width: 640px) and (max-width: 959px) {
+@media (max-width: 860px) {
   .prompt-grid--cards {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 260px);
+  }
+}
+
+@media (max-width: 560px) {
+  .prompt-grid--cards {
+    grid-template-columns: 260px;
   }
 }
 
