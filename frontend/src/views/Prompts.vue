@@ -335,7 +335,7 @@ function onPageChange(p: number) {
 /* ---------- 主列表 ---------- */
 .prompts__main {
   min-height: 240px;
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
   width: 100%;
 }

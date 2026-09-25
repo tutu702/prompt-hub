@@ -8,6 +8,9 @@
 //       event: error   data: {"message":"..."}
 //
 // 客户端断开通过 ctx.Done 通知；onDelta 返回 false 时 service 立刻停止读上游。
+//
+// 日志：记录进入时的关键参数 + 每个 SSE 事件下发的字节数与计数；
+// chunk 不逐条打（避免日志爆炸），仅出汇总：chunk 数 / done / error / 总耗时。
 package handler
 
 import (
@@ -16,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -48,6 +52,22 @@ func (h *LLMTuneHandler) Tune(c *gin.Context) {
 		return
 	}
 
+	// 进入时记录请求关键参数（不含 request_text 全文，避免大文本进日志）。
+	modelCfgID := uint(0)
+	if req.ModelConfigID != nil {
+		modelCfgID = *req.ModelConfigID
+	}
+	reqStart := time.Now()
+	baseLogFields := []zap.Field{
+		zap.Uint("user_id", claims.UserID),
+		zap.Uint("prompt_id", req.PromptID),
+		zap.Uint("model_config_id", modelCfgID),
+		zap.Int("request_len", len(req.RequestText)),
+		zap.Bool("use_context", req.UseContext),
+		zap.Bool("mock", req.Mock),
+	}
+	h.log.Info("llm tune 请求开始", baseLogFields...)
+
 	// SSE 响应头
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -72,12 +92,34 @@ func (h *LLMTuneHandler) Tune(c *gin.Context) {
 	_, _ = fmt.Fprintf(c.Writer, ": connected\n\n")
 	flusher.Flush()
 
+	// SSE 事件下发统计
+	var (
+		chunkCount   int
+		chunkBytes   int
+		lastEvent    string
+		sendSucceeded = true
+	)
 	sendEvent := func(event string, payload any) bool {
 		data, _ := json.Marshal(payload)
-		if _, err := fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event, data); err != nil {
+		frame := fmt.Sprintf("event: %s\ndata: %s\n\n", event, data)
+		n, err := fmt.Fprint(c.Writer, frame)
+		if err != nil {
+			sendSucceeded = false
 			return false
 		}
 		flusher.Flush()
+		lastEvent = event
+		switch event {
+		case "chunk":
+			chunkCount++
+			chunkBytes += n
+		}
+		h.log.Debug("llm tune sse event",
+			append(baseLogFields,
+				zap.String("event", event),
+				zap.Int("frame_bytes", n),
+			)...,
+		)
 		return true
 	}
 
@@ -96,6 +138,14 @@ func (h *LLMTuneHandler) Tune(c *gin.Context) {
 
 	if clientGone || errors.Is(c.Request.Context().Err(), context.Canceled) {
 		// 客户端断开：不再下发事件
+		h.log.Info("llm tune 客户端断开",
+			append(baseLogFields,
+				zap.Int("chunks", chunkCount),
+				zap.Int("chunk_bytes", chunkBytes),
+				zap.String("last_event", lastEvent),
+				zap.Duration("elapsed", time.Since(reqStart)),
+			)...,
+		)
 		return
 	}
 
@@ -105,6 +155,15 @@ func (h *LLMTuneHandler) Tune(c *gin.Context) {
 				"message": ae.Message,
 				"code":    ae.Code,
 			})
+			h.log.Warn("llm tune 业务错误",
+				append(baseLogFields,
+					zap.Int("chunks", chunkCount),
+					zap.Int("chunk_bytes", chunkBytes),
+					zap.Int("err_code", ae.Code),
+					zap.String("err_message", ae.Message),
+					zap.Duration("elapsed", time.Since(reqStart)),
+				)...,
+			)
 		} else {
 			h.log.Error("llm tune 失败", zap.Error(err))
 			sendEvent("error", map[string]string{"message": "调优失败，请稍后再试"})
@@ -115,4 +174,14 @@ func (h *LLMTuneHandler) Tune(c *gin.Context) {
 	sendEvent("done", map[string]any{
 		"history": toTuneHistoryDTO(history),
 	})
+	h.log.Info("llm tune 完成",
+		append(baseLogFields,
+			zap.Int("chunks", chunkCount),
+			zap.Int("chunk_bytes", chunkBytes),
+			zap.Uint("history_id", history.ID),
+			zap.Int("tuned_len", len(history.TunedContent)),
+			zap.Bool("send_ok", sendSucceeded),
+			zap.Duration("elapsed", time.Since(reqStart)),
+		)...,
+	)
 }

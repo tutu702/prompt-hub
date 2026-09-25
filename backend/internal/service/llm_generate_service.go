@@ -51,7 +51,7 @@ func NewLLMGenerateService(
 ) *LLMGenerateService {
 	return &LLMGenerateService{
 		cfgs: cfgs,
-		chat: NewLLMChatClient(aes),
+		chat: NewLLMChatClient(aes, log),
 		log:  log,
 	}
 }

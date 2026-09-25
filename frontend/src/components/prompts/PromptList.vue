@@ -85,26 +85,26 @@ const emit = defineEmits<{
 /* 卡片网格：4 列 × 3 行的固定布局（外层容器 12 项 / 屏） */
 .prompt-grid--cards {
   display: grid;
-  grid-template-columns: repeat(4, 260px);
-  gap: 16px;
+  grid-template-columns: repeat(4, 280px);
+  gap: 20px;
   justify-content: center;
 }
 
-@media (max-width: 1140px) {
+@media (max-width: 1220px) {
   .prompt-grid--cards {
-    grid-template-columns: repeat(3, 260px);
+    grid-template-columns: repeat(3, 280px);
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .prompt-grid--cards {
-    grid-template-columns: repeat(2, 260px);
+    grid-template-columns: repeat(2, 280px);
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
   .prompt-grid--cards {
-    grid-template-columns: 260px;
+    grid-template-columns: 280px;
   }
 }
 

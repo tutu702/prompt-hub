@@ -47,7 +47,7 @@ func NewLLMTuneService(
 		prompts:   prompts,
 		cfgs:      cfgs,
 		histories: histories,
-		chat:      NewLLMChatClient(aes),
+		chat:      NewLLMChatClient(aes, log),
 		log:       log,
 	}
 }
