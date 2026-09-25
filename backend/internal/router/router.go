@@ -24,15 +24,17 @@ import (
 
 // Options 路由注册需要的依赖。
 type Options struct {
-	Cfg         *config.Config
-	Logger      *zap.Logger
-	Health      *handler.HealthHandler
-	Auth        *handler.AuthHandler
-	Category    *handler.CategoryHandler
-	Prompt      *handler.PromptHandler
-	TuneHistory *handler.TuneHistoryHandler
-	LLMConfig   *handler.LLMConfigHandler
-	JWTManager  *jwtpkg.Manager
+	Cfg          *config.Config
+	Logger       *zap.Logger
+	Health       *handler.HealthHandler
+	Auth         *handler.AuthHandler
+	Category     *handler.CategoryHandler
+	Prompt       *handler.PromptHandler
+	TuneHistory  *handler.TuneHistoryHandler
+	LLMConfig    *handler.LLMConfigHandler
+	LLMTune      *handler.LLMTuneHandler
+	LLMGenerate  *handler.LLMGenerateHandler
+	JWTManager   *jwtpkg.Manager
 }
 
 // New 构建 *gin.Engine。
@@ -112,6 +114,11 @@ func New(opt Options) *gin.Engine {
 			protected.POST("/llm-configs/:id/default", opt.LLMConfig.SetDefault)
 			protected.POST("/llm-configs/:id/test-connection", opt.LLMConfig.TestConnection)
 			protected.POST("/llm-configs/fetch-models", opt.LLMConfig.FetchModels)
+
+			// AI 调优（SSE）
+			protected.POST("/llm/tune", opt.LLMTune.Tune)
+			// AI 生成（SSE）
+			protected.POST("/llm/generate", opt.LLMGenerate.Generate)
 		}
 	}
 

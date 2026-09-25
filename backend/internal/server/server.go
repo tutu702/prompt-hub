@@ -113,6 +113,14 @@ func New(cfg *config.Config, log *zap.Logger) *HTTPServer {
 	llmConfigSvc := service.NewLLMConfigService(llmConfigRepo, aesSvc, log)
 	llmConfigH := handler.NewLLMConfigHandler(llmConfigSvc, log)
 
+	// P07 调优服务（依赖 PromptRepo + LLMConfigRepo + TuneHistoryRepo + AES）
+	llmTuneSvc := service.NewLLMTuneService(promptRepo, llmConfigRepo, tuneHistoryRepo, aesSvc, log)
+	llmTuneH := handler.NewLLMTuneHandler(llmTuneSvc, log)
+
+	// P04 / F08 AI 生成服务
+	llmGenerateSvc := service.NewLLMGenerateService(llmConfigRepo, aesSvc, log)
+	llmGenerateH := handler.NewLLMGenerateHandler(llmGenerateSvc, log)
+
 	engine := router.New(router.Options{
 		Cfg:         cfg,
 		Logger:      log,
@@ -122,6 +130,8 @@ func New(cfg *config.Config, log *zap.Logger) *HTTPServer {
 		Prompt:      promptH,
 		TuneHistory: tuneHistoryH,
 		LLMConfig:   llmConfigH,
+		LLMTune:     llmTuneH,
+		LLMGenerate: llmGenerateH,
 		JWTManager:  jwtMgr,
 	})
 
