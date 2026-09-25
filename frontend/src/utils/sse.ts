@@ -114,7 +114,7 @@ export function openSSE(
       while (true) {
         const { value, done } = await reader.read()
         if (done) {
-          // 收尾：处理剩余 buffer
+          // 收尾：处理剩余 buffer（可能是不带尾部 \n\n 的最后一帧）
           if (buffer.length > 0) {
             buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
             for (const line of buffer.split('\n')) {
@@ -124,16 +124,17 @@ export function openSSE(
                 eventName = line.slice(6).trim() || 'message'
               } else if (line.startsWith('data:')) {
                 dataLines.push(line.slice(5).trimStart())
-              } else if (line === '') {
-                flushFrame()
               }
             }
+            // buffer 末尾未必有 \n\n 收尾，这里手动 flush 一次避免漏掉最后一帧
             flushFrame()
           }
           break
         }
         buffer += decoder.decode(value, { stream: true })
         // 拆 frame（连续两个换行 = 一帧结束）
+        // 注意：frame = buffer.slice(0, nlAt) 不包含末尾的 \n\n，
+        // 因此 frame.split('\n') 不会有空字符串行，flushFrame 必须放在循环体外显式调用。
         let nlAt = buffer.indexOf('\n\n')
         while (nlAt >= 0) {
           const frame = buffer.slice(0, nlAt)
@@ -145,10 +146,12 @@ export function openSSE(
               eventName = line.slice(6).trim() || 'message'
             } else if (line.startsWith('data:')) {
               dataLines.push(line.slice(5).trimStart())
-            } else if (line === '') {
-              flushFrame()
             }
+            // SSE 帧内的空行不会再出现（已被 \n\n 切走），
+            // 故这里不再依赖 line === '' 触发 flush。
           }
+          // 帧解析完，flush 一次
+          flushFrame()
           nlAt = buffer.indexOf('\n\n')
         }
       }

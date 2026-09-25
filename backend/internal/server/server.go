@@ -4,7 +4,11 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -95,19 +99,14 @@ func New(cfg *config.Config, log *zap.Logger) *HTTPServer {
 	promptH := handler.NewPromptHandler(promptSvc, log)
 	tuneHistoryH := handler.NewTuneHistoryHandler(tuneHistorySvc, log)
 
-	// P08 LLM 加密：AP Key 加密密钥
-	var aesSvc *cryptopkg.AES
-	if cfg.LLM.AESKey != "" {
-		a, err := cryptopkg.New()
-		if err != nil {
-			log.Warn("LLM 加密初始化失败，/llm-configs 接口将不可用", zap.Error(err))
-		} else {
-			aesSvc = a
-			log.Info("LLM 加密已加载")
-		}
-	} else {
-		log.Warn("未配置 PROMPTHUB_LLM_AES_KEY；/llm-configs 接口将返回 503")
-	}
+	// P08 LLM 加密：API Key 加密密钥。
+	//
+	// 解析顺序（env > file > auto-generated）：
+	//   1. PROMPTHUB_LLM_AES_KEY 环境变量直接给 hex（生产 / 集群显式控制，便于多实例共享 + 轮换）
+	//   2. 持久文件（缺省 ./data/llm_aes.key）—— 首次启动自动生成 32 字节随机 key 落盘（0600），
+	//      之后重启沿用同一把。这样开箱即用，且历史加密数据不会"丢钥匙"。
+	//   3. 都没拿到 —— 生成内存 key 并 WARN；重启即失效（用户必须在生产显式配置）。
+	aesSvc := loadLLMAESKey(cfg, log)
 
 	llmConfigRepo := gormrepo.NewLLMConfigRepo(db)
 	llmConfigSvc := service.NewLLMConfigService(llmConfigRepo, aesSvc, log)
@@ -213,3 +212,111 @@ var _ = time.Second
 
 // 避免 response 包被未使用告警误判（部分 CI 会做全量引用检查）。
 var _ = response.OK
+
+// loadLLMAESKey 按 env > file > auto-generated 顺序加载 / 生成 LLM AES 主密钥。
+//
+//   - env     PROMPTHUB_LLM_AES_KEY：64 字符 hex，最优先（生产显式控制）
+//   - file    cfg.LLM.KeyFile（默认 ./data/llm_aes.key）：缺则生成 32 字节随机 key 落盘（0600），
+//     存在则直接读取；读到非法 hex 视为数据损坏，fail-fast 不覆盖（防止静默丢钥匙）
+//   - in-mem  都没有：生成随机 key 仅内存持有 + WARN；下次重启即失效
+//
+// 返回 nil 表示彻底失败（加密功能不可用，所有 /llm-configs / /llm/tune / /llm/generate 接口将 503）。
+func loadLLMAESKey(cfg *config.Config, log *zap.Logger) *cryptopkg.AES {
+	// 1) 优先级最高：环境变量
+	if cfg.LLM.AESKey != "" {
+		a, err := cryptopkg.NewFromHex(cfg.LLM.AESKey)
+		if err != nil {
+			log.Error("LLM AES key 解析失败（环境变量 PROMPTHUB_LLM_AES_KEY）",
+				zap.String("source", "env"),
+				zap.Error(err),
+			)
+			return nil
+		}
+		log.Info("LLM AES key 已加载（来源：环境变量 PROMPTHUB_LLM_AES_KEY）",
+			zap.String("source", "env"),
+		)
+		return a
+	}
+
+	// 2) 持久文件
+	keyFile := strings.TrimSpace(cfg.LLM.KeyFile)
+	if keyFile != "" {
+		// 先尝试读；缺失则走"生成并落盘"分支
+		if data, err := os.ReadFile(keyFile); err == nil {
+			hexKey := strings.TrimSpace(string(data))
+			if a, err := cryptopkg.NewFromHex(hexKey); err == nil {
+				log.Info("LLM AES key 已加载（来源：持久文件）",
+					zap.String("source", "file"),
+					zap.String("path", keyFile),
+				)
+				return a
+			} else {
+				// 关键安全策略：读到非法 hex 视为数据损坏，绝不静默覆盖。
+				// 否则旧加密数据会全部变成「密文乱码」，用户毫无察觉。
+				log.Error("LLM AES key 文件内容非法（不是 64 字符 hex）。为防止覆盖现有密文，已停止启动。请检查文件或显式配置 PROMPTHUB_LLM_AES_KEY",
+					zap.String("source", "file"),
+					zap.String("path", keyFile),
+					zap.Error(err),
+				)
+				return nil
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			log.Error("LLM AES key 文件读取失败",
+				zap.String("source", "file"),
+				zap.String("path", keyFile),
+				zap.Error(err),
+			)
+			return nil
+		}
+
+		// 文件不存在 → 生成并落盘
+		newKey, err := cryptopkg.GenerateKey()
+		if err != nil {
+			log.Error("LLM AES key 生成失败", zap.Error(err))
+			return nil
+		}
+		if err := writeAESKeyFile(keyFile, newKey); err != nil {
+			// 落盘失败（权限 / 只读 FS 等）。仍然把生成的 key 用上，但下次重启将失效。
+			// 一旦 LLMConfigs 表里写了密文，第二次启动就解不开，所以必须 WARN。
+			log.Warn("LLM AES key 已生成但落盘失败（下次重启将无法解密历史 API Key）；生产部署请配置 PROMPTHUB_LLM_AES_KEY 或修复文件路径权限",
+				zap.String("source", "generated(in-memory only)"),
+				zap.String("path", keyFile),
+				zap.Error(err),
+			)
+			a, _ := cryptopkg.NewFromHex(newKey)
+			return a
+		}
+		a, _ := cryptopkg.NewFromHex(newKey)
+		log.Info("LLM AES key 已自动生成并落盘（首次启动）。生产 / 多实例部署请改用 PROMPTHUB_LLM_AES_KEY 以保证实例间 key 一致",
+			zap.String("source", "generated"),
+			zap.String("path", keyFile),
+		)
+		return a
+	}
+
+	// 3) 都没配置：纯内存 key + WARN
+	newKey, err := cryptopkg.GenerateKey()
+	if err != nil {
+		log.Error("LLM AES key 生成失败", zap.Error(err))
+		return nil
+	}
+	log.Warn("未配置 LLM AES key（既无 PROMPTHUB_LLM_AES_KEY 也无 key_file）。已生成临时 key，重启即失效；生产部署必须显式配置",
+		zap.String("source", "generated(in-memory, ephemeral)"),
+	)
+	a, _ := cryptopkg.NewFromHex(newKey)
+	return a
+}
+
+// writeAESKeyFile 把生成的 key 落盘，自动 mkdir -p 父目录，权限 0600。
+func writeAESKeyFile(path, hexKey string) error {
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return fmt.Errorf("创建 key 文件目录失败: %w", err)
+		}
+	}
+	// 0600：仅 owner 可读写，避免其他人读到 LLM API Key 主密钥
+	if err := os.WriteFile(path, []byte(hexKey+"\n"), 0o600); err != nil {
+		return err
+	}
+	return nil
+}

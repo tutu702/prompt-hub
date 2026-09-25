@@ -127,9 +127,6 @@ function handleAiApply(payload: {
 }
 
 // 暴露给底部按钮的快捷调用
-function onSaveClick() {
-  manualFormRef.value?.submit()
-}
 function onSaveAndNewClick() {
   manualFormRef.value?.saveAndNew()
 }
@@ -142,7 +139,6 @@ function onSaveAndNewClick() {
         <h2 class="prompt-create__title">新建提示词</h2>
         <p class="prompt-create__sub">选择手动创建，或用 AI 帮你生成</p>
       </div>
-      <el-button @click="handleCancel">取消</el-button>
     </header>
 
     <el-tabs v-model="tab" class="prompt-create__tabs">
@@ -161,12 +157,7 @@ function onSaveAndNewClick() {
 
     <footer v-if="tab === 'manual'" class="prompt-create__footer">
       <el-button @click="handleCancel">取消</el-button>
-      <el-button :loading="submitting" @click="onSaveAndNewClick">
-        保存并新建
-      </el-button>
-      <el-button type="primary" :loading="submitting" @click="onSaveClick">
-        保存
-      </el-button>
+      <el-button :loading="submitting" @click="onSaveAndNewClick">保存</el-button>
     </footer>
   </div>
 </template>

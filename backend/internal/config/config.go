@@ -72,8 +72,13 @@ type JWT struct {
 }
 
 // LLMConfig 大模型配置（P08）：API Key 加密密钥（AES-GCM）。
+//
+// 密钥解析优先级（详见 server.New）：
+//   1. aes_key（环境变量 PROMPTHUB_LLM_AES_KEY 直接给 hex）— 生产/集群显式控制
+//   2. key_file 指向的持久文件（缺省 ./data/llm_aes.key）— 首次启动自动生成并落盘
 type LLMConfig struct {
-	AESKey string `mapstructure:"aes_key"`
+	AESKey  string `mapstructure:"aes_key"`
+	KeyFile string `mapstructure:"key_file"`
 }
 
 // Load 按优先级加载配置。
@@ -117,6 +122,7 @@ func Load() (*Config, error) {
 
 	// P08 LLM 配置
 	v.SetDefault("llm.aes_key", "")
+	v.SetDefault("llm.key_file", "./data/llm_aes.key")
 
 	// 配置文件
 	v.SetConfigName("config")

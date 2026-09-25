@@ -80,6 +80,9 @@
 | POST | `/api/v1/auth/login` | 邮箱+密码登录；统一提示"邮箱或密码错误"（防枚举） | 否 |
 | POST | `/api/v1/auth/refresh` | 用 refresh_token 换取新 access_token | 否 |
 | POST | `/api/v1/auth/logout` | 登出（本期服务端无副作用，前端清 token） | 是 |
+| POST | `/api/v1/auth/change-password` | 修改密码；成功后 bump `users.token_version`，旧 refresh_token 全部失效 | 是 |
+| GET | `/api/v1/me` | 取当前用户资料（含 email / nickname / created_at） | 是 |
+| PATCH | `/api/v1/me` | 修改昵称（仅 nickname；邮箱/注册时间不可改） | 是 |
 | GET | `/api/v1/prompts` | 提示词列表（分页+搜索+筛选+排序） | 是 |
 | POST | `/api/v1/prompts` | 创建提示词 | 是 |
 | GET | `/api/v1/prompts/:id` | 提示词详情 | 是 |
@@ -87,6 +90,12 @@
 | DELETE | `/api/v1/prompts/:id` | 软删提示词（30 天可恢复） | 是 |
 | POST | `/api/v1/prompts/batch-delete` | 批量软删提示词 | 是 |
 | POST | `/api/v1/prompts/:id/favorite` | 切换收藏标记 | 是 |
+| POST | `/api/v1/prompts/:id/tune-histories` | 写入一条调优历史（已调优完成的文本） | 是 |
+| GET  | `/api/v1/prompts/:id/tune-histories` | 列出某提示词的调优历史（按 version_no desc） | 是 |
+| GET  | `/api/v1/tune-histories/:id` | 单条调优历史详情 | 是 |
+| POST | `/api/v1/tune-histories/:id/apply` | 把调优后内容应用到原提示词，覆盖并 bump version_no | 是 |
+| POST | `/api/v1/llm/tune` | **SSE**：AI 调优流式生成；event: chunk/done/error；支持 mock 模式 | 是 |
+| POST | `/api/v1/llm/generate` | **SSE**：AI 生成新提示词；event: chunk/done(error: {title, content, description})；支持 mock | 是 |
 | GET | `/api/v1/categories` | 列出当前用户的所有分类 | 是 |
 | POST | `/api/v1/categories` | 创建分类 | 是 |
 | PUT | `/api/v1/categories/:id` | 更新分类（增量） | 是 |
@@ -103,7 +112,7 @@
 | 分类 | `/categories`、`/categories/:id`、`/categories/reorder` |
 | AI 能力 | `/llm/generate` (SSE)、`/llm/tune` (SSE)、`/llm/test-connection` |
 | 大模型配置 | `/llm-configs`、`/llm-configs/:id`、`/llm-configs/:id/default` |
-| 用户 | `/me`、`/me` (PATCH) |
+| 用户 | `/me`、`/me` (PATCH) — P09 个人设置页 |
 
 具体字段、请求体、响应体按 PRD 第五章对应页面的"字段"与"行为"落实。
 
@@ -112,7 +121,17 @@
 1. 登录返回 `access_token`（短期，Header 携带）+ `refresh_token`（长期，HttpOnly Cookie）。
 2. 业务接口从 Header `Authorization` 读取 `access_token`；过期返回 401。
 3. 前端静默调用 `/auth/refresh` 续期；续期失败则强制回 `/login`。
-4. `change-password` 时 bump `users.token_version`，使旧的 refresh_token 全部失效。
+4. `change-password` 时 bump `users.token_version`，使旧的 refresh_token 全部失效（`/auth/refresh` 会校验 `claims.tv != users.tv` 并返回 401）。
+
+## 6.5 AI 调优 SSE 协议（`POST /api/v1/llm/tune`）
+
+- **请求**：`application/json`，字段见 §4。
+- **响应**：`text/event-stream`，三种事件：
+  - `event: chunk` `{"delta":"片段文本"}` — 流式片段
+  - `event: done` `{"history":{...TuneHistory}}` — 完成并已写入历史
+  - `event: error` `{"message":"...","code":400/401/...}` — 业务错误（鉴权/参数/上游失败等）
+- **取消**：前端关闭 fetch 连接（`AbortController.abort()`）；后端 `onDelta` 立刻停止读上游。
+- **mock 模式**：请求体 `{"mock": true}` 时跳过真实 LLM，本地按原文行级追加"已针对「诉求」优化"输出，便于无凭据开发联调。
 
 ## 7. CORS / 安全头
 

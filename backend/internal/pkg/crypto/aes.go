@@ -31,9 +31,15 @@ func New() (*AES, error) {
 	if raw == "" {
 		return nil, errors.New("PROMPTHUB_LLM_AES_KEY 未配置（需 32 字节 hex）")
 	}
-	key, err := hex.DecodeString(raw)
+	return NewFromHex(raw)
+}
+
+// NewFromHex 直接用给定的 64 位 hex 字符串构造 AES，不读环境变量。
+// 用于：①从落盘 key 文件加载；②测试用确定性 key。
+func NewFromHex(hexKey string) (*AES, error) {
+	key, err := hex.DecodeString(hexKey)
 	if err != nil || len(key) != 32 {
-		return nil, errors.New("PROMPTHUB_LLM_AES_KEY 必须为 64 个十六进制字符")
+		return nil, errors.New("LLM AES key 必须为 64 个十六进制字符（32 字节）")
 	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -44,6 +50,16 @@ func New() (*AES, error) {
 		return nil, err
 	}
 	return &AES{gcm: g}, nil
+}
+
+// GenerateKey 生成 32 字节随机密钥（hex 编码后 64 字符）。
+// 使用 crypto/rand 产生熵，强度等同于 AES-256。
+func GenerateKey() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // Encrypt 明文 → hex(nonce+ciphertext)。
