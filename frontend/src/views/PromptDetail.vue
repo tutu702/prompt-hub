@@ -14,7 +14,6 @@ import { computed, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  ArrowLeft as ArrowLeftIcon,
   Star as StarIcon,
   StarFilled as StarFilledIcon,
   DocumentCopy as CopyIcon,
@@ -228,10 +227,6 @@ onBeforeRouteLeave(async () => {
 
     <template v-else-if="prompt">
       <header class="prompt-detail__header">
-        <el-button link @click="router.push('/prompts')">
-          <el-icon><ArrowLeftIcon /></el-icon>
-          <span style="margin-left: 4px">返回列表</span>
-        </el-button>
         <div class="prompt-detail__title-row">
           <h2 class="prompt-detail__title">{{ prompt.title }}</h2>
           <button

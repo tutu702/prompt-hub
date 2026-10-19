@@ -83,7 +83,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "7018:80"
 
 volumes:
   postgres_data:

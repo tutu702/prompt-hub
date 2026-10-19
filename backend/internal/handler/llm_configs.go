@@ -226,7 +226,11 @@ func (h *LLMConfigHandler) TestConnection(c *gin.Context) {
 		ErrorCode:    res.ErrorCode,
 		ErrorMessage: res.ErrorMessage,
 	}
-	c.JSON(http.StatusOK, gin.H{"data": resp})
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "OK",
+		"data":    resp,
+	})
 }
 
 // stringPtrToStr 把 *string 安全转为 string（nil → ""）。
@@ -261,8 +265,12 @@ func (h *LLMConfigHandler) FetchModels(c *gin.Context) {
 		writeErr(c, h.log, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dto.FetchModelsResp{
-		Models: res.Models,
-		Error:  res.Error,
-	}})
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "OK",
+		"data": dto.FetchModelsResp{
+			Models: res.Models,
+			Error:  res.Error,
+		},
+	})
 }

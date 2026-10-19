@@ -18,7 +18,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick as MagicIcon, CircleClose as CancelIcon } from '@element-plus/icons-vue'
 
 import { useLLMStore } from '@/stores/llm'
-import { generateStream, type GenerateResult, type SSEConsumer } from '@/api/modules/tune'
+import { generateStream, type GenerateResult } from '@/api/modules/tune'
+import type { SSEConsumer } from '@/utils/sse'
 
 const emit = defineEmits<{
   (e: 'dirty', value: boolean): void

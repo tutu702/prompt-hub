@@ -112,6 +112,7 @@ function onTuneStart(payload: {
   // 2. 把诉求暂存（供保存/重新生成复用）
   tuneStore.requestText = payload.requestText
   tuneStore.useContext = payload.useContext
+  tuneStore.modelConfigId = payload.modelConfigId ?? null
   tuneStore.streaming = true
   streamStartTs = performance.now()
 
@@ -215,6 +216,7 @@ function onRegenerate() {
   onTuneStart({
     requestText: tuneStore.requestText,
     useContext: tuneStore.useContext,
+    modelConfigId: tuneStore.modelConfigId ?? undefined,
   })
 }
 

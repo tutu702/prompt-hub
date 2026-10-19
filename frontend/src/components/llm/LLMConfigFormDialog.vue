@@ -265,7 +265,7 @@ async function onSubmit() {
       <el-form-item label="模型名称" prop="model" required>
         <el-input
           v-model="form.model"
-          placeholder="例如：gpt-4o-mini"
+          :placeholder="modelPlaceholder"
           maxlength="100"
           clearable
         />
@@ -274,7 +274,7 @@ async function onSubmit() {
       <el-form-item label="BaseURL" prop="base_url" required>
         <el-input
           v-model="form.base_url"
-          placeholder="https://api.openai.com/v1"
+          :placeholder="baseUrlPlaceholder"
           clearable
         />
       </el-form-item>

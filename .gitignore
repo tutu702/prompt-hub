@@ -37,3 +37,4 @@ bin/
 *.test
 *.out
 prompthub-backend
+backend/data/

@@ -6,11 +6,9 @@
  * 行内操作：测试连接 / 设为默认 / 启用停用 / 编辑 / 删除
  */
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus as PlusIcon,
-  ArrowLeft as ArrowLeftIcon,
   Connection as ConnectionIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
@@ -22,7 +20,6 @@ import LLMConfigFormDialog from '@/components/llm/LLMConfigFormDialog.vue'
 import { useLLMStore } from '@/stores/llm'
 import type { LLMConfig } from '@/types'
 
-const router = useRouter()
 const llmStore = useLLMStore()
 
 const dialogOpen = ref(false)
@@ -132,19 +129,11 @@ async function handleDelete(c: LLMConfig) {
     ElMessage.error((err as Error).message || '删除失败')
   }
 }
-
-function onBack() {
-  router.push('/prompts')
-}
 </script>
 
 <template>
   <div class="llm-settings">
     <header class="llm-settings__header">
-      <el-button link @click="onBack">
-        <el-icon><ArrowLeftIcon /></el-icon>
-        <span style="margin-left: 4px">返回提示词库</span>
-      </el-button>
       <div class="llm-settings__title-row">
         <div>
           <h2 class="llm-settings__title">模型配置</h2>

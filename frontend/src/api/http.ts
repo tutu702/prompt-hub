@@ -77,7 +77,16 @@ http.interceptors.request.use(
 let refreshingPromise: Promise<string> | null = null
 
 // 业务接口 URL 白名单（其 HTTP 401 表示业务错误而非 token 过期）
-const AUTH_ENDPOINTS = ['/auth/refresh', '/auth/login', '/auth/register'] as const
+//
+// 包含 /auth/change-password 是为了把"当前密码错误"这类业务错误从 token
+// 过期流程里区分出来：旧逻辑会把 401 当 token 过期触发 refresh，重试仍
+// 401 后又吐硬编码的"登录已过期"，把真正的"当前密码错误"吞掉。
+const AUTH_ENDPOINTS = [
+  '/auth/refresh',
+  '/auth/login',
+  '/auth/register',
+  '/auth/change-password',
+] as const
 function isAuthEndpoint(url: string): boolean {
   return AUTH_ENDPOINTS.some((p) => url.includes(p))
 }

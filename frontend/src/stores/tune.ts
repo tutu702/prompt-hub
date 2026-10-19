@@ -19,6 +19,7 @@ export const useTuneStore = defineStore('tune', () => {
   // 调优诉求与上下文开关（页面级）
   const requestText = ref<string>('')
   const useContext = ref<boolean>(false)
+  const modelConfigId = ref<number | null>(null)
 
   // 历史缓存：key = promptId
   const histories = ref<Record<number, TuneHistory[]>>({})
@@ -29,6 +30,7 @@ export const useTuneStore = defineStore('tune', () => {
     streaming.value = false
     error.value = ''
     requestText.value = ''
+    modelConfigId.value = null
   }
 
   async function loadHistories(
@@ -76,6 +78,7 @@ export const useTuneStore = defineStore('tune', () => {
     error,
     requestText,
     useContext,
+    modelConfigId,
     histories,
     historiesLoaded,
     reset,

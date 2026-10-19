@@ -235,10 +235,25 @@ async function onChangePassword() {
     await nextTick()
     window.location.href = '/login'
   } catch (err) {
-    // http 拦截器已对 5xx / 网络异常弹过 toast；业务错误（401 当前密码错误 / 400 强度不足）由 service 返回 message
-    const e = err as { serverMessage?: string; message?: string }
-    const msg = e?.serverMessage || e?.message
-    if (msg) ElMessage.error(msg)
+    // http 拦截器已对 401/5xx/网络异常弹过 toast；这里仅兜底拦截器没覆盖的场景
+    // （典型：HTTP 2xx + body.code !== 200 这条路径由拦截器统一 toast，本分支不重复弹）。
+    // AxiosError 上需从 response.data.message 拿后端真正的业务消息，不能只用 err.message。
+    const e = err as {
+      response?: { status?: number; data?: { message?: string } }
+      businessCode?: number
+      serverMessage?: string
+      message?: string
+    }
+    const hasHttpToast = !!e?.response?.status
+    const serverMsg = e?.response?.data?.message || e?.serverMessage
+    if (!hasHttpToast && serverMsg) {
+      ElMessage.error(serverMsg)
+    } else if (!hasHttpToast) {
+      ElMessage.error('更新失败，请稍后再试')
+    } else {
+      // 拦截器已经弹过 toast，这里只记录日志，避免重复 + 避免 axios 英文默认消息透出
+      console.error('[Settings] onChangePassword 异常', err)
+    }
   } finally {
     pwdSubmitting.value = false
   }
